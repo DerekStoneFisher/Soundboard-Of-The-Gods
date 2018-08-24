@@ -3,8 +3,7 @@ from Audio_Proj_Const import NAME_OVERRIDE_LIST
 KEY_STATE_QUEUE_MAX_SIZE = 5
 
 class KeyPressManager:
-    def __init__(self, soundCollection):
-        self.soundCollection = soundCollection
+    def __init__(self):
         self._key_state_queue = [[],[],[],[],[]]
         self.keys_to_ignore = []
         self.key_state_changed = False

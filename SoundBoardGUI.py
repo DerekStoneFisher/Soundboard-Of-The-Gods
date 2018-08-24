@@ -28,6 +28,12 @@ for k,v in soundCollection.key_bind_map.iteritems():
     button.grid(column=i, row=0)
     i += 1
 
+button = Button(window, text="stopAllSounds()", command=soundCollection.stopAllSounds)
+button.grid(column=0, row=1)
+
+button = Button(window, text="addNewSound()", command=soundCollection.add)
+
+
 
 
 window.mainloop()

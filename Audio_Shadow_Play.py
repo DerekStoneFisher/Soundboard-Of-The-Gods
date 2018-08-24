@@ -5,7 +5,7 @@ import time
 import thread
 from KeyPress import KeyPressManager
 from pyHook.HookManager import KeyboardEvent, HookConstants
-
+import SoundBoard_Controller
 
 import pyaudio
 import Audio_Utils
@@ -25,12 +25,7 @@ import pyaudio
 
 
 
-frames = []
-cached_frames = []
-extended_cache = []
-record_start = None
-record_end = None
-keyToExtendedSoundMap = dict()
+
 
 hold_to_play = False
 
@@ -38,7 +33,7 @@ soundCollection = Sound.SoundCollection()
 soundCollection.ingestSoundboardJsonConfigFile("Board1.json")
 for key_bind in soundCollection.key_bind_map:
     print key_bind, soundCollection.key_bind_map[key_bind].path_to_sound
-keyPressManager = KeyPressManager(soundCollection)
+keyPressManager = KeyPressManager()
 
 # just grab any random sound so sound_entry doesn't start as null
 sound_entry = next(iter(soundCollection.key_bind_map.values())) # type: Sound.SoundEntry
@@ -49,9 +44,11 @@ pitch_modifiers = {'1':-.5, '2':-.4, '3':-.3, '4':-.2, '5':-.1, '6':0, '7':.1, '
 
 audioRecorder = Recorder.AudioRecorder()
 
+soundboardController = SoundBoard_Controller.SoundBoardController(soundCollection, keyPressManager, audioRecorder)
 
 def OnKeyboardEvent(event):
-    global frames, cached_frames, extended_cache, record_start, record_end, hold_to_play, keyPressManager, sound_entry, previous_sound_entry, pause_soundboard, pitch_modifiers, audioRecorder
+
+    global hold_to_play, keyPressManager, sound_entry, previous_sound_entry, pause_soundboard, pitch_modifiers, audioRecorder
 
     keyPressManager.processKeyEvent(event)
     updateSoundboardConfiguration(keyPressManager, soundCollection)
@@ -87,24 +84,7 @@ def OnKeyboardEvent(event):
             thread.start_new_thread(sound_entry.stop, tuple())
 
 
-        if len(keys_down_tuple) >= 2:
-            if keys_down_tuple[0] == "menu" and keys_down_tuple[1] == "pause":
-                sys.exit()
-            elif keys_down_tuple[0] == "menu" and keys_down_tuple[1] == "x":
-                if audioRecorder.record_start is None: # if we aren't already recording
-                    audioRecorder.startRecording()
-                else:
-                    audioRecorder.stopRecording()
-                    recording_contents = audioRecorder.getLastRecordingContents()
-                    recording_contents = Recorder.getFramesWithoutStartingSilence(recording_contents)
-                    soundCollection.getSoundEntryByPath("x.wav").frames = recording_contents
-                    Audio_Utils.writeFramesToFile(recording_contents, "x.wav")
-            elif keys_down_tuple[0] in "1234567890" and keys_down_tuple[1] == "end":
-                new_file_name = "x" + keys_down_tuple[0] + ".wav"
-                shutil.copyfile("x.wav", new_file_name)
-                soundCollection.key_bind_map[frozenset([keys_down_tuple[0], "next"])] = Sound.SoundEntry(new_file_name)
-                subprocess.Popen(["audacity.exe", new_file_name], executable="D:/Program Files (x86)/Audacity/audacity.exe")
-    return True
+
 
 def updateSoundboardConfiguration(keyPressManager, soundCollection):
     global sound_entry, previous_sound_entry, pause_soundboard, hold_to_play
@@ -156,36 +136,13 @@ def runpyHookThread():
         pass
 
 
-
-def listen():
-    global frames, record_start
-    stream = pyaudio.PyAudio().open(
-        format=pyaudio.paInt16,
-        channels=2,
-        rate=44100,
-        input=True,
-        frames_per_buffer=1024,
-        input_device_index=Audio_Utils.getIndexOfStereoMix()
-    )
-
-    while True:
-        read_result = stream.read(1024)
-        if len(frames) > Audio_Utils.secondsToFrames(60) and record_start is None: # every 60 seconds, reset the size of our frame array UNLESS we are currently recording something (record_start gets set to a number if we are)
-            print "removing all but last 10 seconds of frames. Frame size went from " + str(len(frames)) + " to " + str(len(frames[-Audio_Utils.secondsToFrames(10):]))
-            frames = frames[-Audio_Utils.secondsToFrames(10):]
-        frames.append(read_result)
-
-
-
-
 def main():
     global audioRecorder
-    pyHook_t = threading.Thread(target=runpyHookThread)
+    # pyHook_t = threading.Thread(target=runpyHookThread)
+    pyHook_t = threading.Thread(target=soundboardController.runpyHookThread)
     pyHook_t.start()
 
     thread.start_new_thread(audioRecorder.listen())
-    listen_t = threading.Thread(target=listen)
-    listen_t.start()
 
 if __name__ == "__main__":
     main()

@@ -12,7 +12,8 @@ class SoundCollection:
         self.key_bind_map = key_bind_map
         if self.key_bind_map is None:
             self.key_bind_map = dict()
-            # self.key_bind_map[frozenset(['control','multiply'])] = SoundEntry("x.wav")
+            if os.path.exists("x.wav"):
+                self.key_bind_map[frozenset(['control','multiply'])] = SoundEntry("x.wav")
             for number in "1234567890":
                 file_name = "x" + number + ".wav"
                 if os.path.exists(file_name):
@@ -69,29 +70,34 @@ class SoundCollection:
                 return sound_entry
         return None
 
-    def playSound(self, keys_down_tuple, last_keys_down_tuple, hold_to_play=False, restart_instead_of_stop=True):
-        if frozenset(keys_down_tuple) in self.key_bind_map: # if the bind for a sound was pressed
-            #temp_previous_sound_entry = sound_entry
-            sound_entry = self.key_bind_map[frozenset(keys_down_tuple)]
-            #if temp_previous_sound_entry.path_to_sound != sound_entry.path_to_sound:
-            #    previous_sound_entry = temp_previous_sound_entry
+    def playSoundToFinish(self, sound_to_play):
+        if not sound_to_play.is_playing: # if it not playing, start playing it
+            thread.start_new_thread(sound_to_play.play, tuple())
+        else: # if already playing, stop playing and restart the sound from the beginning
+            thread.start_new_thread(sound_to_play.stop, tuple())
+            counter = 0
+            while sound_to_play.stream_in_use and counter < 1000: # wait for the sound_entry to finish outputting its current chunk to the stream if it is in the middle of doing so
+                if counter > 100: print "stream is still in use after waiting 100ms... something is not right"
+                time.sleep(.001)
+                counter += 1
+            thread.start_new_thread(sound_to_play.play, tuple())
 
 
-            if not sound_entry.is_playing: # start playing it if it not playing
-                thread.start_new_thread(sound_entry.play, tuple())
-            elif not hold_to_play: # stop playing it if hold_to_play is off and the key was let go
-                thread.start_new_thread(sound_entry.stop, tuple())
-                if restart_instead_of_stop: # only start playing the sound over again if restart_after_stopping is true
-                    counter = 0
-                    while sound_entry.stream_in_use and counter < 1000: # wait for the sound_entry to finish outputting its current chunk to the stream if it is in the middle of doing so
-                        time.sleep(.001)
-                        counter += 1
-                    thread.start_new_thread(sound_entry.play, tuple())
-                else:
-                    restart_instead_of_stop = True # toggling restart_after_stopping off only lasts for one sound-key-press
-        elif hold_to_play and frozenset(last_keys_down_tuple) in self.key_bind_map: # if hold to play is on and we just let go of the key for a sound
-            sound_entry = self.key_bind_map[frozenset(last_keys_down_tuple)]
-            thread.start_new_thread(sound_entry.stop, tuple())
+    # def playSound(self, sound_to_play, last_sound_played=None, hold_to_play=False):
+    #     if hold_to_play and last_sound_played is not None: # if hold to play is on and we just let go of the key for a sound
+    #         thread.start_new_thread(last_sound_played.stop, tuple())
+    #     else:
+    #         if not sound_to_play.is_playing: # start playing it if it not playing
+    #             thread.start_new_thread(sound_to_play.play, tuple())
+    #         elif not hold_to_play: # stop playing it if hold_to_play is off and the key was let go
+    #             thread.start_new_thread(sound_to_play.stop, tuple())
+    #             counter = 0
+    #             while sound_to_play.stream_in_use and counter < 1000: # wait for the sound_entry to finish outputting its current chunk to the stream if it is in the middle of doing so
+    #                 if counter > 100: print "stream is still in use after waiting 100ms... something is not right"
+    #                 time.sleep(.001)
+    #                 counter += 1
+    #             thread.start_new_thread(sound_to_play.play, tuple())
+
 
 
 
@@ -194,6 +200,12 @@ class SoundEntry:
 
     def shiftPitch(self, amount):
         self.pitch_modifier += amount
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.path_to_sound == other.path_to_sound
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 if __name__ == "__main__":
