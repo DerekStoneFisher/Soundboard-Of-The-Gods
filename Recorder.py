@@ -7,7 +7,7 @@ import shutil
 
 import Audio_Utils
 import array
-from Sound import SoundEntry, SoundCollection
+from Sound import SoundEntry
 
 SILENCE_THRESHOLD = 500
 
@@ -45,8 +45,9 @@ class AudioRecorder:
                     self.stopRecording()
                     recording_contents = self.getLastRecordingContents()
                     recording_contents = getFramesWithoutStartingSilence(recording_contents)
-                    soundCollection.getSoundEntryByPath("x.wav").frames = recording_contents
+                    soundCollection.getSoundEntryByName("x.wav").frames = recording_contents
                     Audio_Utils.writeFramesToFile(recording_contents, "x.wav")
+
             elif keys_down_tuple[0] in "1234567890" and keys_down_tuple[1] == "end":
                 new_file_name = "x" + keys_down_tuple[0] + ".wav"
                 shutil.copyfile("x.wav", new_file_name)

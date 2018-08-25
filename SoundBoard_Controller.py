@@ -1,5 +1,5 @@
 import threading
-
+from SoundBoard_GUI import SoundBoardGUI
 import pythoncom
 import pyHook
 from Recorder import AudioRecorder
@@ -32,7 +32,7 @@ class SoundBoardController:
         self.recorder = recorder
         self.hold_to_play = False
         self.pause_soundboard = False
-        self.previous_sounds_queue = [SoundEntry("x.wav"), SoundEntry("x.wav")] # cannot have null values
+        self.previous_sounds_queue = [next(iter(soundCollection.key_bind_map.values())), next(iter(soundCollection.key_bind_map.values()))] # cannot have null values
 
 
     def runpyHookThread(self):
@@ -115,6 +115,8 @@ class SoundBoardController:
             self.swapCurrentAndPreviousSoundEntry()
         elif self.keyPressManager.endingKeysEqual(["1", "5"]) or self.keyPressManager.endingKeysEqual(["oem_3"]):
             self.getCurrentSoundEntry().stop() # no new thread needed
+        elif self.keyPressManager.endingKeysEqual(["1", "6"]) :
+            self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):
         if self.getCurrentSoundEntry() != sound_entry_to_add and sound_entry_to_add is not None:
@@ -132,11 +134,13 @@ if __name__ == "__main__":
     keyPressManager = KeyPressManager()
     audioRecorder = AudioRecorder()
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)
+    soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder)
 
     pyHook_t = threading.Thread(target=soundboardController.runpyHookThread)
     pyHook_t.start()
-    thread.start_new_thread(audioRecorder.listen())
-    # thread.start_new_thread(soundboardController.runpyHook())
+    # thread.start_new_thread(soundboardController.runpyHookThread, tuple())
+    thread.start_new_thread(audioRecorder.listen, tuple())
+    thread.start_new_thread(soundBoardGUI.runGUI, tuple())
 
 
 

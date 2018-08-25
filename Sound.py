@@ -29,7 +29,7 @@ class SoundCollection:
                     activation_key_codes = soundboard_entry["activationKeysNumbers"]
                     if os.path.exists(path_to_sound_file):
                         activation_key_names = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_key_codes]
-                        soundEntry_to_add = SoundEntry(path_to_sound_file, activation_keys=activation_key_names)
+                        soundEntry_to_add = SoundEntry(path_to_sound_file, activation_keys=frozenset(activation_key_names))
                         self.key_bind_map[frozenset(activation_key_names)] = soundEntry_to_add
                 except:
                     print "failed to ingest", soundboard_entry["file"]
@@ -62,6 +62,12 @@ class SoundCollection:
                 return self.key_bind_map[frozenset(keys_down)]
             else:
                 del(keys_down[0])
+        return None
+
+    def getSoundEntryByName(self, name_of_sound):
+        for sound_entry in self.key_bind_map.values():
+            if os.path.basename(sound_entry.path_to_sound).lower() == name_of_sound.lower():
+                return sound_entry
         return None
 
     def getSoundEntryByPath(self, path_to_sound):
@@ -102,7 +108,7 @@ class SoundCollection:
 
 
 class SoundEntry:
-    def __init__(self, path_to_sound, frames=None, activation_keys=[], is_playing=False, continue_playing=True, pitch_modifier=0):
+    def __init__(self, path_to_sound, frames=None, activation_keys=frozenset(), is_playing=False, continue_playing=True, pitch_modifier=0):
         self.path_to_sound = path_to_sound
         self.activation_keys = activation_keys,
         self.frames = frames
@@ -200,6 +206,9 @@ class SoundEntry:
 
     def shiftPitch(self, amount):
         self.pitch_modifier += amount
+
+    def getSoundName(self):
+        return os.path.basename(self.path_to_sound).replace(".wav", "")
 
     def __eq__(self, other):
         return type(self) == type(other) and self.path_to_sound == other.path_to_sound
