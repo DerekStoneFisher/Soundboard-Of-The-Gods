@@ -10,6 +10,7 @@ import time, thread
 class SoundCollection:
     def __init__(self, key_bind_map=None):
         self.key_bind_map = key_bind_map
+        self.sound_entry_list_from_json = []
         if self.key_bind_map is None:
             self.key_bind_map = dict()
             if os.path.exists("x.wav"):
@@ -31,6 +32,8 @@ class SoundCollection:
                         activation_key_names = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_key_codes]
                         soundEntry_to_add = SoundEntry(path_to_sound_file, activation_keys=frozenset(activation_key_names))
                         self.key_bind_map[frozenset(activation_key_names)] = soundEntry_to_add
+                        self.sound_entry_list_from_json.append(soundEntry_to_add)
+
                 except:
                     print "failed to ingest", soundboard_entry["file"]
 
@@ -61,6 +64,8 @@ class SoundCollection:
             if frozenset(keys_down) in self.key_bind_map:
                 return self.key_bind_map[frozenset(keys_down)]
             else:
+                # if keys_down[0] in ['control', 'shift', 'menu']: # mo
+                #     return None
                 del(keys_down[0])
         return None
 
@@ -108,13 +113,14 @@ class SoundCollection:
 
 
 class SoundEntry:
-    def __init__(self, path_to_sound, frames=None, activation_keys=frozenset(), is_playing=False, continue_playing=True, pitch_modifier=0):
+    def __init__(self, path_to_sound, frames=None, activation_keys=frozenset(), is_playing=False, continue_playing=True, pitch_modifier=0, wait_to_load_sound=True):
         self.path_to_sound = path_to_sound
         self.activation_keys = activation_keys,
         self.frames = frames
         self.is_playing = is_playing
         self.continue_playing = continue_playing
         self.pitch_modifier = pitch_modifier
+        self.wait_to_load_sound = wait_to_load_sound
         self.p = pyaudio.PyAudio()
         self.stream_in_use = False
 
@@ -122,30 +128,15 @@ class SoundEntry:
         self.jump_to_marked_frame_index = True
         self.marked_frame_index = 0
 
-        if self.frames is None and os.path.exists(self.path_to_sound):
-            self.frames = Audio_Utils.getFramesFromFile(self.path_to_sound)
-            self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
 
-        self.stream = self.p.open(
-            format=pyaudio.paInt16,
-            channels=2,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024,
-            output=True,
-            output_device_index=7
-        )
 
-        self.stream2 = self.p.open(
-            format=pyaudio.paInt16,
-            channels=2,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024,
-            output=True,
-            output_device_index=5
-        )
-
+        if not wait_to_load_sound and self.frames is None and os.path.exists(self.path_to_sound):
+            self.reloadFramesFromFile()
+            self.initializeStream()
+        else:
+            self.frames = None
+            self.stream = None
+            self.stream2 = None
 
     def playMultiThreaded(self):
         print "playing", self.path_to_sound
@@ -161,6 +152,11 @@ class SoundEntry:
 
 
     def play(self, reset_frame_index=True):
+        if self.wait_to_load_sound:
+            self.initializeStream()
+        if self.frames is None and os.path.exists(self.path_to_sound):
+            self.reloadFramesFromFile()
+
         self.is_playing = True
         self.continue_playing = True
 
@@ -209,6 +205,31 @@ class SoundEntry:
 
     def getSoundName(self):
         return os.path.basename(self.path_to_sound).replace(".wav", "")
+
+    def reloadFramesFromFile(self):
+        self.frames = Audio_Utils.getFramesFromFile(self.path_to_sound)
+        self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
+
+    def initializeStream(self):
+        self.stream = self.p.open(
+            format=pyaudio.paInt16,
+            channels=2,
+            rate=44100,
+            input=True,
+            frames_per_buffer=1024,
+            output=True,
+            output_device_index=7
+        )
+
+        self.stream2 = self.p.open(
+            format=pyaudio.paInt16,
+            channels=2,
+            rate=44100,
+            input=True,
+            frames_per_buffer=1024,
+            output=True,
+            output_device_index=5
+        )
 
     def __eq__(self, other):
         return type(self) == type(other) and self.path_to_sound == other.path_to_sound

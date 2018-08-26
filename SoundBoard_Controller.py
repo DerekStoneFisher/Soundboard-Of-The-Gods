@@ -1,3 +1,5 @@
+import os
+import Audio_Utils
 import threading
 from SoundBoard_GUI import SoundBoardGUI
 import pythoncom
@@ -45,18 +47,22 @@ class SoundBoardController:
         except KeyboardInterrupt:
             pass
 
+
     def handleKeyEvent(self, key_event):
         self.keyPressManager.processKeyEvent(key_event) # update data inside of keyPressManager about what key was pressed
-        if self.keyPressManager.key_state_changed:
+        if self.keyPressManager.key_state_changed and not keyPressManager.last_event_was_key_release:
             self.recorder.processKeysDown(self.keyPressManager.getKeysDown(), soundCollection) # recorder class will start or stop recording if the recording hotkeys were pressed
             self._updateSoundboardConfiguration() # use the now updated data stored inside of keyPressManager to update the configuration settings of the soundboard
             possible_new_sound_entry = self.soundCollection.getBestSoundEntryMatchOrNull(self.keyPressManager.getKeysDown())
-            self.updateQueueWithNewSoundEntry(possible_new_sound_entry)
+            self.addSoundToQueueAndPlayIt(possible_new_sound_entry)
 
-            # if the soundboard is on and a key (which wasn't already down before) for a sound was pressed.
-            if not self.pause_soundboard and possible_new_sound_entry is not None:
-                self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
         return True
+
+    def addSoundToQueueAndPlayIt(self, sound_entry):
+        self.updateQueueWithNewSoundEntry(sound_entry)
+        # if the soundboard is on and a key (which wasn't already down before) for a sound was pressed.
+        if not self.pause_soundboard and sound_entry is not None:
+            self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
 
     def getCurrentSoundEntry(self):
         """
@@ -74,6 +80,8 @@ class SoundBoardController:
         self.previous_sounds_queue[-1], self.previous_sounds_queue[-2] = self.previous_sounds_queue[-2], self.previous_sounds_queue[-1]
 
     def _updateSoundboardConfiguration(self):
+        if self.keyPressManager.keysAreContainedInKeysDown(["1", "4"]):  # we use more lenient matching for this one
+            thread.start_new_thread(self.getCurrentSoundEntry().jumpToMarkedFrameIndex,tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
 
         if len(self.keyPressManager.getKeysDown()) >= 2 and self.keyPressManager.getKeysDown()[0] == "menu" and self.keyPressManager.getKeysDown()[-1] in PITCH_MODIFIERS:
             self.getCurrentSoundEntry().pitch_modifier = PITCH_MODIFIERS[self.keyPressManager.getKeysDown()[-1]]
@@ -94,7 +102,7 @@ class SoundBoardController:
             self.getCurrentSoundEntry().shiftPitch(PITCH_SHIFT_AMOUNT)
 
         # non-sound specific configuration key binds
-        elif self.keyPressManager.endingKeysEqual(["2","3","4"]):
+        elif self.keyPressManager.endingKeysEqual(["2","3","4"]) or keyPressManager.endingKeysEqual(["pause"]):
             self.pause_soundboard = not self.pause_soundboard
             self.soundCollection.stopAllSounds()
         elif self.keyPressManager.endingKeysEqual(["1","2","3"]):
@@ -109,8 +117,6 @@ class SoundBoardController:
             self.getCurrentSoundEntry().moveMarkedFrameIndex(-SHIFT_SECONDS)
         elif self.keyPressManager.endingKeysEqual(["1","3"]):
             self.getCurrentSoundEntry().markCurrentFrameIndex()
-        elif self.keyPressManager.endingKeysEqual(["1","4"]):
-            thread.start_new_thread(self.getCurrentSoundEntry().jumpToMarkedFrameIndex, tuple()) # need to call via a thread so we don't get blocked by the .play() which can get called by this function
         elif self.keyPressManager.endingKeysEqual(["1", "2"]):
             self.swapCurrentAndPreviousSoundEntry()
         elif self.keyPressManager.endingKeysEqual(["1", "5"]) or self.keyPressManager.endingKeysEqual(["oem_3"]):
@@ -130,17 +136,17 @@ if __name__ == "__main__":
     soundCollection = SoundCollection()
     soundCollection.ingestSoundboardJsonConfigFile("Board1.json")
     for key_bind in soundCollection.key_bind_map:
-        print key_bind, soundCollection.key_bind_map[key_bind].path_to_sound
+        print key_bind, os.path.basename(soundCollection.key_bind_map[key_bind].path_to_sound)
     keyPressManager = KeyPressManager()
     audioRecorder = AudioRecorder()
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)
-    soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder)
+    #soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController)
 
     pyHook_t = threading.Thread(target=soundboardController.runpyHookThread)
     pyHook_t.start()
-    # thread.start_new_thread(soundboardController.runpyHookThread, tuple())
     thread.start_new_thread(audioRecorder.listen, tuple())
-    thread.start_new_thread(soundBoardGUI.runGUI, tuple())
+    #soundBoardGUI.runGUI()
+    # thread.start_new_thread(soundBoardGUI.runGUI, tuple())
 
 
 
