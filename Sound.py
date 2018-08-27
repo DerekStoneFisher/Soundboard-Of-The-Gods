@@ -64,8 +64,8 @@ class SoundCollection:
             if frozenset(keys_down) in self.key_bind_map:
                 return self.key_bind_map[frozenset(keys_down)]
             else:
-                # if keys_down[0] in ['control', 'shift', 'menu']: # mo
-                #     return None
+                if keys_down[0] in ['tab', 'menu']: # a special command like "Tab + [" shouldn't trigger the "[" sound effect
+                     return None
                 del(keys_down[0])
         return None
 
@@ -128,6 +128,17 @@ class SoundEntry:
         self.jump_to_marked_frame_index = True
         self.marked_frame_index = 0
 
+        self.slow_motion_slow_rate = .01 # how much each frame is slowed down or sped up by when we activate slow mo or speed up
+        # self.slow_motion_slow_frames = 80 # over the course of how many frames will we slow down or speed up when activating
+        self.slow_motion_started = False # when this is set to true, start slowing doing for "slow_motion_frames_left" frames
+        self.slow_motion_frames_left = 0 # number of frames to continue slowing down for
+        self.speed_up_started = False # signal to start speeding up  for "speed_up_to_normal" frames left
+        self.speed_up_frames_left = 0 # number of frames to continue speeding up for
+
+        self.oscillate_shift = .01 # cycles between negative and positive during oscillation
+        self.frames_between_oscillate_shifts = 60
+        self.half_oscillation_cycles_remaining = 0 # how many times the pitch will shift up and down (going up and then down is 2 half oscillation cycles)
+        self.oscillation_frame_counter = 0 # used with modulo to keep track of when to switch oscillate_shift from positive and negative
 
 
         if not wait_to_load_sound and self.frames is None and os.path.exists(self.path_to_sound):
@@ -138,20 +149,20 @@ class SoundEntry:
             self.stream = None
             self.stream2 = None
 
-    def playMultiThreaded(self):
-        print "playing", self.path_to_sound
-        if not self.is_playing: # start playing it if it not playing
-            thread.start_new_thread(self.play, tuple())
-        else: # stop playing it if hold_to_play is off and the key was let go
-            thread.start_new_thread(self.stop, tuple())
-            counter = 0
-            while self.stream_in_use and counter < 1000: # wait for the self to finish outputting its current chunk to the stream if it is in the middle of doing so
-                time.sleep(.001)
-                counter += 1
-            thread.start_new_thread(self.play, tuple())
+    # def playMultiThreaded(self):
+    #     print "playing", self.path_to_sound
+    #     if not self.is_playing: # start playing it if it not playing
+    #         thread.start_new_thread(self.play, tuple())
+    #     else: # stop playing it if hold_to_play is off and the key was let go
+    #         thread.start_new_thread(self.stop, tuple())
+    #         counter = 0
+    #         while self.stream_in_use and counter < 1000: # wait for the self to finish outputting its current chunk to the stream if it is in the middle of doing so
+    #             time.sleep(.001)
+    #             counter += 1
+    #         thread.start_new_thread(self.play, tuple())
 
 
-    def play(self, reset_frame_index=True):
+    def play(self):
         if self.wait_to_load_sound:
             self.initializeStream()
         if self.frames is None and os.path.exists(self.path_to_sound):
@@ -160,11 +171,7 @@ class SoundEntry:
         self.is_playing = True
         self.continue_playing = True
 
-        if reset_frame_index:
-            frame_index = 0
-        else:
-            frame_index = self.marked_frame_index
-
+        frame_index = 0
         while frame_index < len(self.frames) and self.continue_playing:
             if self.mark_frame_index:
                 self.marked_frame_index = frame_index
@@ -173,18 +180,57 @@ class SoundEntry:
                 frame_index = self.marked_frame_index
                 self.jump_to_marked_frame_index = False
 
-            self.stream_in_use = True
             current_frame = self.frames[frame_index]
-            current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
-            self.stream.write(current_frame)
-            self.stream2.write(current_frame)
 
-            self.stream_in_use = False
+            if self.half_oscillation_cycles_remaining > 0:
+                if self.oscillation_frame_counter % self.frames_between_oscillate_shifts == 0:
+                    self.oscillate_shift = -self.oscillate_shift # switch between negative and positive
+                    self.half_oscillation_cycles_remaining -= 1
+                self.pitch_modifier += self.oscillate_shift
+                self.oscillation_frame_counter += 1
 
+                if self.half_oscillation_cycles_remaining == 0: # for the very last iteration
+                    self.pitch_modifier += abs(self.oscillate_shift) # shift pitch up one extra time, otherwise, we end up 1 oscillate_shift lower than where we started
+
+
+
+
+
+            # do slow motion stuff here
+            if self.slow_motion_started:
+                if self.slow_motion_frames_left > 0:
+                    self.slow_motion_frames_left -= 1
+                    #if frame_index % self.slow_motion_frame_skip_rate == 0:
+                    self.pitch_modifier -= self.slow_motion_slow_rate
+                else:
+                    self.slow_motion_started = False
+            elif self.speed_up_started:
+                if self.speed_up_frames_left > 0:
+                    self.speed_up_frames_left -= 1
+                    #if frame_index % self.slow_motion_frame_skip_rate == 0:
+                    self.pitch_modifier += self.slow_motion_slow_rate
+                else:
+                    self.speed_up_started = False
+
+
+            # # round the pitch modifier to 0 if its close enough, I want zero comparison to work
+            if -0.0001 < self.pitch_modifier < 0.0001:
+                self.pitch_modifier = 0
+
+            if frame_index % 10 == 0: print self.pitch_modifier
+            if self.pitch_modifier != 0:
+                current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
+
+            self._writeFrameToStreams(current_frame)
             frame_index += 1
 
         self.is_playing = False
 
+    def _writeFrameToStreams(self, frame):
+        self.stream_in_use = True
+        self.stream.write(frame)
+        self.stream2.write(frame)
+        self.stream_in_use = False
 
     def stop(self):
         self.continue_playing = False
@@ -202,6 +248,20 @@ class SoundEntry:
 
     def shiftPitch(self, amount):
         self.pitch_modifier += amount
+
+    def activateSlowMotion(self):
+        self.slow_motion_frames_left = 80
+        self.slow_motion_started = True
+
+    def activateSpeedUpMotion(self):
+        self.speed_up_frames_left = 80
+        self.speed_up_started = True
+
+    def activateOscillate(self):
+        if self.half_oscillation_cycles_remaining == 0: #  trying to oscillate while we are already doing so is a bad idea
+            self.oscillate_shift = abs(self.oscillate_shift)
+            self.half_oscillation_cycles_remaining = 5
+            self.oscillation_frame_counter = 0
 
     def getSoundName(self):
         return os.path.basename(self.path_to_sound).replace(".wav", "")

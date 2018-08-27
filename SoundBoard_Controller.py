@@ -11,9 +11,9 @@ from KeyPress import KeyPressManager
 import thread
 
 SOUND_QUEUE_MAX_SIZE = 5
-PITCH_MODIFIERS = {'1':-.5, '2':-.4, '3':-.3, '4':-.2, '5':-.1, '6':0, '7':.1, '8':.2, '9':.3, '0':.4} # how much is the pitch shifted for each step in "piano-mode"
+PITCH_MODIFIERS = {'1':-.75, '2':-.6, '3':-.45, '4':-.3, '5':-.15, '6':0, '7':.15, '8':.3, '9':.45, '0':.6} # how much is the pitch shifted for each step in "piano-mode"
 PITCH_SHIFT_AMOUNT = .1 # what multiplier is used to adjust the pitch with the left and right arrows
-SHIFT_SECONDS = .1 # by how many seconds will the up and down arrows move the marked frame index
+SHIFT_SECONDS = .15 # by how many seconds will the up and down arrows move the marked frame index
 
 
 class SoundBoardController:
@@ -111,6 +111,16 @@ class SoundBoardController:
 
 
         # key binds that affect the last sound played
+        elif self.keyPressManager.endingKeysEqual(["tab", "down"]):
+            self.getCurrentSoundEntry().activateSlowMotion()
+        elif self.keyPressManager.endingKeysEqual(["tab", "up"]):
+            self.getCurrentSoundEntry().activateSpeedUpMotion()
+        elif self.keyPressManager.endingKeysEqual(["tab","oem_5"]): # tab \
+            self.getCurrentSoundEntry().activateOscillate()
+        elif self.keyPressManager.endingKeysEqual(["tab", "oem_4"]): # tab [
+            self.getCurrentSoundEntry().oscillate_shift += .01
+        elif self.keyPressManager.endingKeysEqual(["tab", "oem_6"]): # tab ]
+            self.getCurrentSoundEntry().oscillate_shift -= .01
         elif self.keyPressManager.endingKeysEqual(["up"]):
             self.getCurrentSoundEntry().moveMarkedFrameIndex(SHIFT_SECONDS)
         elif self.keyPressManager.endingKeysEqual(["down"]):
@@ -123,6 +133,7 @@ class SoundBoardController:
             self.getCurrentSoundEntry().stop() # no new thread needed
         elif self.keyPressManager.endingKeysEqual(["1", "6"]) :
             self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
+
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):
         if self.getCurrentSoundEntry() != sound_entry_to_add and sound_entry_to_add is not None:
