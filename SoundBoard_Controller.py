@@ -42,10 +42,10 @@ class SoundBoardController:
         hm.KeyDown = self.handleKeyEvent
         hm.KeyUp = self.handleKeyEvent
         hm.HookKeyboard()
-        try:
-            pythoncom.PumpMessages()
-        except KeyboardInterrupt:
-            pass
+        # try:
+        #     pythoncom.PumpMessages()
+        # except KeyboardInterrupt:
+        #     pass
 
 
     def handleKeyEvent(self, key_event):
@@ -151,13 +151,11 @@ if __name__ == "__main__":
     keyPressManager = KeyPressManager()
     audioRecorder = AudioRecorder()
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)
-    #soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController)
+    soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController)
 
-    pyHook_t = threading.Thread(target=soundboardController.runpyHookThread)
-    pyHook_t.start()
+    soundBoardGUI.root.after(1000, soundboardController.runpyHookThread)
     thread.start_new_thread(audioRecorder.listen, tuple())
-    #soundBoardGUI.runGUI()
-    # thread.start_new_thread(soundBoardGUI.runGUI, tuple())
+    soundBoardGUI.runGUI()
 
 
 

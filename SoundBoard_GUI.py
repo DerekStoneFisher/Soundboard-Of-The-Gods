@@ -1,4 +1,4 @@
-from tkinter import *
+import tkinter as tk
 from functools import partial
 import os
 import Sound
@@ -17,17 +17,17 @@ class SoundBoardGUI:
         self.keyPressManager = keyPressManager # needed to get the most recent key to create new binds
         self.recorder = audioRecorder # needed to get the recordings so we can use them to create new soundEntries
         self.soundBoardController = soundBoardController # so we can call the addSoundToQueueAndPlayIt() function
-        self.window = None
+        self.root = None
         self._buildWindow()
 
     def runGUI(self):
-        self.window.mainloop()
+        self.root.mainloop()
 
     def _buildWindow(self):
-        self.window = Tk()
-        self.window.title("Soundboard")
-        self.window.geometry("1024x480")
-        self.window.configure(background='black')
+        self.root = tk.Tk()
+        self.root.title("Soundboard")
+        self.root.geometry("1024x480")
+        self.root.configure(background='black')
         #tkinter.Entry(self.window, state=DISABLED)
 
         row = 0
@@ -36,27 +36,28 @@ class SoundBoardGUI:
             if column > BUTTONS_PER_COLUMN:
                 column = 0
                 row += 1
-            button = Button(self.window, text=sound_entry.getSoundName(), command=partial(self.soundCollection.playSoundToFinish, sound_entry), height=HEIGHT, width=WIDTH, anchor=ANCHOR)
+            button = tk.Button(self.root, text=sound_entry.getSoundName(), command=partial(self.soundCollection.playSoundToFinish, sound_entry), height=HEIGHT, width=WIDTH, anchor=ANCHOR)
             button.grid(column=column, row=row)
             column += 1
 
         row += 1
-        self.window.grid_rowconfigure(row, minsize=25)
+        self.root.grid_rowconfigure(row, minsize=25)
         row += 1
         column = 0
 
-        for filename in os.listdir(SOUNDS_DIRECTORY):
-            if column > BUTTONS_PER_COLUMN:
-                column = 0
-                row += 1
-            sound_entry = Sound.SoundEntry(os.path.join(SOUNDS_DIRECTORY, filename))
-            self.soundCollection.addSoundEntry(sound_entry)
-            button = Button(self.window, text=os.path.basename(filename), width=WIDTH, anchor='w', command=partial(self.soundBoardController.addSoundToQueueAndPlayIt, sound_entry))
-            button.grid(column=column, row=row)
-            column += 1
+        if os.path.exists(SOUNDS_DIRECTORY):
+            for filename in os.listdir(SOUNDS_DIRECTORY):
+                if column > BUTTONS_PER_COLUMN:
+                    column = 0
+                    row += 1
+                sound_entry = Sound.SoundEntry(os.path.join(SOUNDS_DIRECTORY, filename))
+                self.soundCollection.addSoundEntry(sound_entry)
+                button = tk.Button(self.root, text=os.path.basename(filename), width=WIDTH, anchor='w', command=partial(self.soundBoardController.addSoundToQueueAndPlayIt, sound_entry))
+                button.grid(column=column, row=row)
+                column += 1
 
-        row += 1
-        column = 0
+            row += 1
+            column = 0
 
 
 
@@ -65,6 +66,6 @@ class SoundBoardGUI:
 
 
 
-        button = Button(self.window, text="stopAllSounds()", command=self.soundCollection.stopAllSounds, width=WIDTH, anchor='w')
+        button = tk.Button(self.root, text="stopAllSounds()", command=self.soundCollection.stopAllSounds, width=WIDTH, anchor='w')
         button.grid(column=column, row=row)
         #self.window.withdraw()
