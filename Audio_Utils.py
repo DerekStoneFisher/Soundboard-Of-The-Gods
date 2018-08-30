@@ -115,12 +115,13 @@ def getIndexOfStereoMix():
     numdevices = info.get('deviceCount')
     index_of_stereo_mix = None
     for i in range(0, numdevices):
-            if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
-                device_name = p.get_device_info_by_host_api_device_index(0, i).get('name')
-                print "Input Device id ", i, " - ", device_name
-                if "Stereo Mix" in device_name:
-                    index_of_stereo_mix = i
-                    print "set index of input device (stereo mix) to " + str(i)
+        current_device = p.get_device_info_by_host_api_device_index(0, i)
+        if (current_device.get('maxInputChannels')) > 0:
+            device_name = current_device.get('name')
+            print "Input Device id ", i, " - ", device_name
+            if "Stereo Mix" in device_name:
+                index_of_stereo_mix = i
+                print "set index of input device (stereo mix) to " + str(i)
     if index_of_stereo_mix is None:
         raise ValueError("ERROR: COULD NOT FIND STEREO MIX - MAKE SURE IT IS ENABLED")
     return index_of_stereo_mix
@@ -128,6 +129,25 @@ def getIndexOfStereoMix():
 def getIndexOfSpeakers():
     p = pyaudio.PyAudio()
     return p.get_default_output_device_info()
+
+def getIndexOfVirtualAudioCable():
+    p = pyaudio.PyAudio()
+    device_count = p.get_device_count()
+    print "searching for virtual audio cable..."
+    for i in range(0, device_count):
+        current_device = p.get_device_info_by_index(i)
+        device_name = current_device["name"]
+        device_index = current_device["index"]
+        is_output_device = current_device["maxOutputChannels"] > 0
+        if (is_output_device and ("cable" in device_name.lower() or "virtual" in device_name.lower)):
+            print 'found virtual audio cable "' + device_name + '" at index ' + str(device_index)
+            return device_index
+        else:
+            print 'device_name "' + device_name + "' at index " + str(device_index)
+    print "WARNING: failed to find virtual audio cable"
+    return None
+
+
 
 def getPitchShiftedFrame(frame, octaves):
     sample_width = pyaudio.PyAudio().get_sample_size(pyaudio.paInt16)
@@ -138,11 +158,6 @@ def getPitchShiftedFrame(frame, octaves):
     lowpitch_sound = lowpitch_sound.set_frame_rate(44100)
 
     return lowpitch_sound.raw_data
-
-
-
-
-
 
 def secondsToFrames(seconds):
     return int(seconds*43)

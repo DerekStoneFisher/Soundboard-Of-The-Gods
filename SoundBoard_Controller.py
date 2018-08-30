@@ -115,7 +115,7 @@ class SoundBoardController:
             self.getCurrentSoundEntry().activateSlowMotion()
         elif self.keyPressManager.endingKeysEqual(["tab", "up"]):
             self.getCurrentSoundEntry().activateSpeedUpMotion()
-        elif self.keyPressManager.endingKeysEqual(["tab","oem_5"]): # tab \
+        elif self.keyPressManager.endingKeysEqual(["tab","oem_5"] or self.keyPressManager.endingKeysEqual("oem_5")): # tab \
             self.getCurrentSoundEntry().activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "oem_4"]): # tab [
             self.getCurrentSoundEntry().oscillate_shift += .01

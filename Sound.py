@@ -5,6 +5,9 @@ from Audio_Proj_Const import KEY_ID_TO_NAME_MAP, convertJavaKeyIDToRegularKeyID
 import os
 import time, thread
 
+VIRTUAL_AUDIO_CABLE_AVAILABLE = Audio_Utils.getIndexOfVirtualAudioCable() is not None
+
+
 
 
 class SoundCollection:
@@ -114,6 +117,12 @@ class SoundCollection:
 
 class SoundEntry:
     def __init__(self, path_to_sound, frames=None, activation_keys=frozenset(), is_playing=False, continue_playing=True, pitch_modifier=0, wait_to_load_sound=True):
+        """
+
+        :type path_to_sound: str
+        :type frames: list
+        :type pitch_modifier: float
+        """
         self.path_to_sound = path_to_sound
         self.activation_keys = activation_keys,
         self.frames = frames
@@ -143,28 +152,15 @@ class SoundEntry:
 
         if not wait_to_load_sound and self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
-            self.initializeStream()
+            self._initializeStream()
         else:
             self.frames = None
-            self.stream = None
-            self.stream2 = None
-
-    # def playMultiThreaded(self):
-    #     print "playing", self.path_to_sound
-    #     if not self.is_playing: # start playing it if it not playing
-    #         thread.start_new_thread(self.play, tuple())
-    #     else: # stop playing it if hold_to_play is off and the key was let go
-    #         thread.start_new_thread(self.stop, tuple())
-    #         counter = 0
-    #         while self.stream_in_use and counter < 1000: # wait for the self to finish outputting its current chunk to the stream if it is in the middle of doing so
-    #             time.sleep(.001)
-    #             counter += 1
-    #         thread.start_new_thread(self.play, tuple())
-
+            self.speaker_stream = None
+            self.virtual_speaker_stream = None
 
     def play(self):
         if self.wait_to_load_sound:
-            self.initializeStream()
+            self._initializeStream()
         if self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
 
@@ -193,9 +189,6 @@ class SoundEntry:
                     self.pitch_modifier += abs(self.oscillate_shift) # shift pitch up one extra time, otherwise, we end up 1 oscillate_shift lower than where we started
 
 
-
-
-
             # do slow motion stuff here
             if self.slow_motion_started:
                 if self.slow_motion_frames_left > 0:
@@ -213,7 +206,7 @@ class SoundEntry:
                     self.speed_up_started = False
 
 
-            # # round the pitch modifier to 0 if its close enough, I want zero comparison to work
+            # round the pitch modifier to 0 if its close enough, I want zero comparison to work
             if -0.0001 < self.pitch_modifier < 0.0001:
                 self.pitch_modifier = 0
 
@@ -228,8 +221,9 @@ class SoundEntry:
 
     def _writeFrameToStreams(self, frame):
         self.stream_in_use = True
-        self.stream.write(frame)
-        self.stream2.write(frame)
+        self.speaker_stream.write(frame)
+        if VIRTUAL_AUDIO_CABLE_AVAILABLE:
+            self.virtual_speaker_stream.write(frame)
         self.stream_in_use = False
 
     def stop(self):
@@ -270,26 +264,27 @@ class SoundEntry:
         self.frames = Audio_Utils.getFramesFromFile(self.path_to_sound)
         self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
 
-    def initializeStream(self):
-        self.stream = self.p.open(
+    def _initializeStream(self):
+        self.speaker_stream = self.p.open(
             format=pyaudio.paInt16,
             channels=2,
             rate=44100,
             input=True,
             frames_per_buffer=1024,
             output=True,
-            output_device_index=7
+            output_device_index=Audio_Utils.getIndexOfSpeakers()
         )
 
-        self.stream2 = self.p.open(
-            format=pyaudio.paInt16,
-            channels=2,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024,
-            output=True,
-            output_device_index=5
-        )
+        if VIRTUAL_AUDIO_CABLE_AVAILABLE:
+            self.virtual_speaker_stream = self.p.open(
+                format=pyaudio.paInt16,
+                channels=2,
+                rate=44100,
+                input=True,
+                frames_per_buffer=1024,
+                output=True,
+                output_device_index=Audio_Utils.getIndexOfVirtualAudioCable()
+            )
 
     def __eq__(self, other):
         return type(self) == type(other) and self.path_to_sound == other.path_to_sound
