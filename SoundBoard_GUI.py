@@ -36,7 +36,7 @@ class SoundBoardGUI:
             if column > BUTTONS_PER_COLUMN:
                 column = 0
                 row += 1
-            button = tk.Button(self.root, text=sound_entry.getSoundName(), command=partial(self.soundCollection.playSoundToFinish, sound_entry), height=HEIGHT, width=WIDTH, anchor=ANCHOR)
+            button = tk.Button(self.root, text=sound_entry.getSoundName(), command=partial(self.soundBoardController.addSoundToQueueAndPlayIt, sound_entry), height=HEIGHT, width=WIDTH, anchor=ANCHOR)
             button.grid(column=column, row=row)
             column += 1
 
