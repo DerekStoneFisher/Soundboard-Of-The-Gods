@@ -147,7 +147,7 @@ if __name__ == "__main__":
     soundCollection = SoundCollection()
     soundCollection.ingestSoundboardJsonConfigFile("Board1.json")
     for key_bind in soundCollection.key_bind_map:
-        print key_bind, os.path.basename(soundCollection.key_bind_map[key_bind].path_to_sound)
+        print list(key_bind), os.path.basename(soundCollection.key_bind_map[key_bind].path_to_sound)
     keyPressManager = KeyPressManager()
     audioRecorder = AudioRecorder()
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)

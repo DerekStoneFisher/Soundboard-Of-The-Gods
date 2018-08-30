@@ -111,24 +111,24 @@ def trimStart(infile, outfilename, trim_ms):
 
 def getIndexOfStereoMix():
     p = pyaudio.PyAudio()
-    info = p.get_host_api_info_by_index(0)
-    numdevices = info.get('deviceCount')
-    index_of_stereo_mix = None
-    for i in range(0, numdevices):
-        current_device = p.get_device_info_by_host_api_device_index(0, i)
-        if (current_device.get('maxInputChannels')) > 0:
-            device_name = current_device.get('name')
-            print "Input Device id ", i, " - ", device_name
-            if "Stereo Mix" in device_name:
-                index_of_stereo_mix = i
-                print "set index of input device (stereo mix) to " + str(i)
-    if index_of_stereo_mix is None:
-        raise ValueError("ERROR: COULD NOT FIND STEREO MIX - MAKE SURE IT IS ENABLED")
-    return index_of_stereo_mix
+    device_count = p.get_device_count()
+    print "searching for stereo mix..."
+    for i in range(0, device_count):
+        current_device = p.get_device_info_by_index(i)
+        device_name = current_device["name"]
+        device_index = current_device["index"]
+        is_input_device = current_device["maxInputChannels"] > 0
+        if is_input_device and 'Stereo Mix' in device_name:
+            print 'found stereo mix "' + device_name + '" at index ' + str(device_index)
+            return device_index
+    default_device = p.get_default_input_device_info()
+    print 'WARNING: failed to find stereo mix. using default input device "' + default_device['name'] + ' at index ' + str(default_device['index'])
+    return default_device['index']
 
 def getIndexOfSpeakers():
-    p = pyaudio.PyAudio()
-    return p.get_default_output_device_info()
+    speakers_info = pyaudio.PyAudio().get_default_output_device_info()
+    print 'found speakers "', speakers_info['name'], 'at index ', speakers_info['index']
+    return speakers_info['index']
 
 def getIndexOfVirtualAudioCable():
     p = pyaudio.PyAudio()
@@ -139,12 +139,10 @@ def getIndexOfVirtualAudioCable():
         device_name = current_device["name"]
         device_index = current_device["index"]
         is_output_device = current_device["maxOutputChannels"] > 0
-        if (is_output_device and ("cable" in device_name.lower() or "virtual" in device_name.lower)):
+        if is_output_device and ("cable" in device_name.lower() or "virtual" in device_name.lower()):
             print 'found virtual audio cable "' + device_name + '" at index ' + str(device_index)
             return device_index
-        else:
-            print 'device_name "' + device_name + "' at index " + str(device_index)
-    print "WARNING: failed to find virtual audio cable"
+    print "WARNING: failed to find virtual audio cable... Soundboard will not be audible over the microphone, only through your speakers."
     return None
 
 

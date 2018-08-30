@@ -124,6 +124,7 @@ class SoundEntry:
         :type pitch_modifier: float
         """
         self.path_to_sound = path_to_sound
+        # print "initializing sound:", os.path.basename(path_to_sound), "with key bind:", ", ".join(activation_keys)
         self.activation_keys = activation_keys,
         self.frames = frames
         self.is_playing = is_playing
@@ -159,7 +160,7 @@ class SoundEntry:
             self.virtual_speaker_stream = None
 
     def play(self):
-        if self.wait_to_load_sound:
+        if self.wait_to_load_sound and self.speaker_stream is None and self.virtual_speaker_stream is None:
             self._initializeStream()
         if self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
@@ -210,9 +211,9 @@ class SoundEntry:
             if -0.0001 < self.pitch_modifier < 0.0001:
                 self.pitch_modifier = 0
 
-            if frame_index % 10 == 0: print self.pitch_modifier
             if self.pitch_modifier != 0:
                 current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
+                if frame_index % 100 == 0: print "current pitch is ", self.pitch_modifier
 
             self._writeFrameToStreams(current_frame)
             frame_index += 1
@@ -291,8 +292,3 @@ class SoundEntry:
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-
-if __name__ == "__main__":
-    sound = SoundEntry("x1.wav")
-    sound.play()
