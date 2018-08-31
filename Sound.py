@@ -14,6 +14,7 @@ class SoundCollection:
     def __init__(self, key_bind_map=None):
         self.key_bind_map = key_bind_map
         self.sound_entry_list_from_json = []
+        self.sound_entry_path_map = dict()
         if self.key_bind_map is None:
             self.key_bind_map = dict()
             if os.path.exists("x.wav"):
@@ -34,27 +35,29 @@ class SoundCollection:
                     if os.path.exists(path_to_sound_file):
                         activation_key_names = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_key_codes]
                         soundEntry_to_add = SoundEntry(path_to_sound_file, activation_keys=frozenset(activation_key_names))
-                        self.key_bind_map[frozenset(activation_key_names)] = soundEntry_to_add
+                        self.addSoundEntry(soundEntry_to_add)
                         self.sound_entry_list_from_json.append(soundEntry_to_add)
 
                 except:
                     print "failed to ingest", soundboard_entry["file"]
 
 
+
+
     def addSoundEntry(self, soundEntry):
-        copy = frozenset(soundEntry.activation_keys)
-        self.key_bind_map[copy] = soundEntry
+        self.sound_entry_path_map[soundEntry.path_to_sound] = soundEntry
+        self.key_bind_map[soundEntry.activation_keys] = soundEntry
 
     def stopAllSounds(self):
-        for soundEntry in self.key_bind_map.values():
+        for soundEntry in self.sound_entry_path_map.values():
             soundEntry.stop()
 
     def resetAllPitches(self):
-        for soundEntry in self.key_bind_map.values():
+        for soundEntry in self.sound_entry_path_map.values():
             soundEntry.pitch_modifier = 0
 
     def shiftAllPitches(self, shift_amount):
-        for soundEntry in self.key_bind_map.values():
+        for soundEntry in self.sound_entry_path_map.values():
             soundEntry.pitch_modifier += shift_amount
 
     def addSoundEntries(self, soundEntries):
@@ -73,13 +76,13 @@ class SoundCollection:
         return None
 
     def getSoundEntryByName(self, name_of_sound):
-        for sound_entry in self.key_bind_map.values():
+        for sound_entry in self.sound_entry_path_map.values():
             if os.path.basename(sound_entry.path_to_sound).lower() == name_of_sound.lower():
                 return sound_entry
         return None
 
     def getSoundEntryByPath(self, path_to_sound):
-        for sound_entry in self.key_bind_map.values():
+        for sound_entry in self.sound_entry_path_map.values():
             if sound_entry.path_to_sound == path_to_sound:
                 return sound_entry
         return None
@@ -125,7 +128,7 @@ class SoundEntry:
         """
         self.path_to_sound = path_to_sound
         # print "initializing sound:", os.path.basename(path_to_sound), "with key bind:", ", ".join(activation_keys)
-        self.activation_keys = activation_keys,
+        self.activation_keys = activation_keys
         self.frames = frames
         self.is_playing = is_playing
         self.continue_playing = continue_playing
@@ -171,7 +174,7 @@ class SoundEntry:
         frame_index = 0
         while frame_index < len(self.frames) and self.continue_playing:
             if self.mark_frame_index:
-                self.marked_frame_index = frame_index
+                self.marked_frame_index = max(0, frame_index-5)
                 self.mark_frame_index = False
             elif self.jump_to_marked_frame_index:
                 frame_index = self.marked_frame_index
@@ -273,7 +276,7 @@ class SoundEntry:
             input=True,
             frames_per_buffer=1024,
             output=True,
-            output_device_index=Audio_Utils.getIndexOfSpeakers()
+            output_device_index=5#Audio_Utils.getIndexOfSpeakers()
         )
 
         if VIRTUAL_AUDIO_CABLE_AVAILABLE:
@@ -284,7 +287,7 @@ class SoundEntry:
                 input=True,
                 frames_per_buffer=1024,
                 output=True,
-                output_device_index=Audio_Utils.getIndexOfVirtualAudioCable()
+                output_device_index=7#Audio_Utils.getIndexOfVirtualAudioCable()
             )
 
     def __eq__(self, other):
