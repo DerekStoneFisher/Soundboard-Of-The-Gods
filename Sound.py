@@ -6,8 +6,86 @@ import os
 import time, thread
 
 VIRTUAL_AUDIO_CABLE_AVAILABLE = Audio_Utils.getIndexOfVirtualAudioCable() is not None
+SPEAKERS_INDEX = Audio_Utils.getIndexOfSpeakers()
+VIRTUAL_AUDIO_CABLE_INDEX = Audio_Utils.getIndexOfVirtualAudioCable()
+STREAM_COUNT = 10
+p = pyaudio.PyAudio()
 
 
+class SharedStreamCollection:
+    def __init__(self):
+        self.shared_streams = [SharedStream() for i in range(0, STREAM_COUNT)]
+
+    def getUnusedStreamAndIndex(self):
+        '''
+        the SoundEntry that calls this function is responsible for saving the index of the stream and
+        calling releaseStreamAtIndex with that index when done with the stream
+        :return: SoundEntry, int
+        '''
+        for i, stream in enumerate(self.shared_streams):
+            if not stream.in_use:
+                stream.in_use = True
+                return stream, i
+
+        print "could not find a free stream, adding a new one and returning that one"
+        self.shared_streams.append(SharedStream())
+        return self.shared_streams[-1]
+
+    def releaseStreamAtIndex(self, index):
+        self.shared_streams[index].in_use = False
+
+
+
+class SharedStream:
+    '''
+    one soundEntry can play sounds to a SharedStream at a time
+    a sharedStream usually has 1 stream for the speaker and 1 stream for the virtual audio cable. These are stored in output_streams
+    a
+    '''
+    def __init__(self):
+        self.in_use = False
+        # self._speaker_stream = speaker_stream
+        # self._virtual_audio_cable_stream = virtual_audio_cable_stream
+        self.output_streams = [] # usually will have 1 stream for speaker, 1 stream for virtual audio cable
+        # self.sound_using_the_stream = None
+        self._initializeSpeakerAndVirtualStream()
+
+    #
+    # def inUse(self):
+    #     return self._in_use
+
+    def playFrame(self, frame):
+        for stream in self.output_streams:
+            stream.write(frame)
+
+
+    def _initializeSpeakerAndVirtualStream(self):
+        speaker_stream = p.open(
+            format=pyaudio.paInt16,
+            channels=2,
+            rate=44100,
+            input=True,
+            frames_per_buffer=1024,
+            output=True,
+            output_device_index=SPEAKERS_INDEX
+         )
+        self.output_streams.append(speaker_stream)
+
+        if VIRTUAL_AUDIO_CABLE_AVAILABLE:
+            virtual_speaker_stream = p.open(
+                format=pyaudio.paInt16,
+                channels=2,
+                rate=44100,
+                input=True,
+                frames_per_buffer=1024,
+                output=True,
+                output_device_index=VIRTUAL_AUDIO_CABLE_INDEX
+            )
+            self.output_streams.append(virtual_speaker_stream)
+
+
+
+SHARED_STREAM_COLLECTION = SharedStreamCollection()
 
 
 class SoundCollection:
@@ -18,11 +96,11 @@ class SoundCollection:
         if self.key_bind_map is None:
             self.key_bind_map = dict()
             if os.path.exists("x.wav"):
-                self.key_bind_map[frozenset(['control','multiply'])] = SoundEntry("x.wav")
+                self.createAndAddSoundEntry("x.wav", ['control','multiply'])
             for number in "1234567890":
                 file_name = "x" + number + ".wav"
                 if os.path.exists(file_name):
-                    self.key_bind_map[frozenset([number, "next"])] = SoundEntry(file_name)
+                    self.createAndAddSoundEntry(file_name, [number, "next"])
 
     def ingestSoundboardJsonConfigFile(self, config_file_path):
         with open(config_file_path) as config_file:
@@ -42,11 +120,14 @@ class SoundCollection:
                     print "failed to ingest", soundboard_entry["file"]
 
 
-
-
     def addSoundEntry(self, soundEntry):
         self.sound_entry_path_map[soundEntry.path_to_sound] = soundEntry
         self.key_bind_map[soundEntry.activation_keys] = soundEntry
+
+    def createAndAddSoundEntry(self, path_to_sound, activation_keys):
+        if type(activation_keys) == type(list()):
+            activation_keys = frozenset(activation_keys)
+        self.addSoundEntry(SoundEntry(path_to_sound, activation_keys=activation_keys))
 
     def stopAllSounds(self):
         for soundEntry in self.sound_entry_path_map.values():
@@ -153,18 +234,20 @@ class SoundEntry:
         self.half_oscillation_cycles_remaining = 0 # how many times the pitch will shift up and down (going up and then down is 2 half oscillation cycles)
         self.oscillation_frame_counter = 0 # used with modulo to keep track of when to switch oscillate_shift from positive and negative
 
+        self.current_sharedStream = None
+        self.shared_steam_index = None
 
-        if not wait_to_load_sound and self.frames is None and os.path.exists(self.path_to_sound):
+
+        if self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
-            self._initializeStream()
         else:
             self.frames = None
             self.speaker_stream = None
             self.virtual_speaker_stream = None
 
     def play(self):
-        if self.wait_to_load_sound and self.speaker_stream is None and self.virtual_speaker_stream is None:
-            self._initializeStream()
+        if self.current_sharedStream is None:
+            self.current_sharedStream, self.shared_steam_index = SHARED_STREAM_COLLECTION.getUnusedStreamAndIndex()
         if self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
 
@@ -211,7 +294,7 @@ class SoundEntry:
 
 
             # round the pitch modifier to 0 if its close enough, I want zero comparison to work
-            if -0.0001 < self.pitch_modifier < 0.0001:
+            if -0.0001 < float(self.pitch_modifier) < 0.0001:
                 self.pitch_modifier = 0
 
             if self.pitch_modifier != 0:
@@ -222,12 +305,12 @@ class SoundEntry:
             frame_index += 1
 
         self.is_playing = False
+        SHARED_STREAM_COLLECTION.releaseStreamAtIndex(self.shared_steam_index)
+        self.current_sharedStream = None
 
     def _writeFrameToStreams(self, frame):
         self.stream_in_use = True
-        self.speaker_stream.write(frame)
-        if VIRTUAL_AUDIO_CABLE_AVAILABLE:
-            self.virtual_speaker_stream.write(frame)
+        self.current_sharedStream.playFrame(frame)
         self.stream_in_use = False
 
     def stop(self):
@@ -267,28 +350,6 @@ class SoundEntry:
     def reloadFramesFromFile(self):
         self.frames = Audio_Utils.getFramesFromFile(self.path_to_sound)
         self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
-
-    def _initializeStream(self):
-        self.speaker_stream = self.p.open(
-            format=pyaudio.paInt16,
-            channels=2,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024,
-            output=True,
-            output_device_index=5#Audio_Utils.getIndexOfSpeakers()
-        )
-
-        if VIRTUAL_AUDIO_CABLE_AVAILABLE:
-            self.virtual_speaker_stream = self.p.open(
-                format=pyaudio.paInt16,
-                channels=2,
-                rate=44100,
-                input=True,
-                frames_per_buffer=1024,
-                output=True,
-                output_device_index=7#Audio_Utils.getIndexOfVirtualAudioCable()
-            )
 
     def __eq__(self, other):
         return type(self) == type(other) and self.path_to_sound == other.path_to_sound
