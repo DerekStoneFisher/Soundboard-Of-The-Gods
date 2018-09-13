@@ -4,7 +4,7 @@ import json
 from Audio_Proj_Const import KEY_ID_TO_NAME_MAP, convertJavaKeyIDToRegularKeyID
 import os
 import time, thread
-
+import array
 VIRTUAL_AUDIO_CABLE_AVAILABLE = Audio_Utils.getIndexOfVirtualAudioCable() is not None
 
 
@@ -266,7 +266,9 @@ class SoundEntry:
 
     def reloadFramesFromFile(self):
         self.frames = Audio_Utils.getFramesFromFile(self.path_to_sound)
+        self.frames = Audio_Utils.getFramesWithoutStartingSilence(self.frames)
         self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
+
 
     def _initializeStream(self):
         self.speaker_stream = self.p.open(

@@ -8,8 +8,11 @@ import struct
 import pyaudio
 import numpy as np
 import io
+import array
 
 DEFAULT_DBFS = -20.0
+SILENCE_THRESHOLD = 500
+
 
 
 def writeFramesToFile(frames, filename, normalize=True):
@@ -162,3 +165,12 @@ def secondsToFrames(seconds):
 
 def framesToSeconds(frames):
     return '%.2f' % (float(frames)/43)
+
+def getFramesWithoutStartingSilence(frames):
+    for i in range(0, len(frames)):
+        volume = max(array.array('h', frames[i]))
+        print volume
+        if volume > SILENCE_THRESHOLD:
+            return frames[i:]
+
+    return frames

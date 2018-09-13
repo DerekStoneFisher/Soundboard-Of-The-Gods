@@ -6,10 +6,8 @@ import time
 import shutil
 
 import Audio_Utils
-import array
 from Sound import SoundEntry
 
-SILENCE_THRESHOLD = 500
 
 class AudioRecorder:
     def __init__(self):
@@ -44,7 +42,7 @@ class AudioRecorder:
                 else:
                     self.stopRecording()
                     recording_contents = self.getLastRecordingContents()
-                    recording_contents = getFramesWithoutStartingSilence(recording_contents)
+                    recording_contents = Audio_Utils.getFramesWithoutStartingSilence(recording_contents)
                     soundCollection.getSoundEntryByName("x.wav").frames = recording_contents
                     Audio_Utils.writeFramesToFile(recording_contents, "x.wav")
 
@@ -87,14 +85,6 @@ class AudioRecorder:
 
 
 
-def getFramesWithoutStartingSilence(frames):
-    for i in range(0, len(frames)):
-        volume = max(array.array('h', frames[i]))
-        print volume
-        if volume > SILENCE_THRESHOLD:
-            return frames[i:]
-
-    return frames
 
 
 
