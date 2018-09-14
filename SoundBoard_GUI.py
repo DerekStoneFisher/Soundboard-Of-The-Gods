@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.font as tkFont
 from functools import partial
 import os
 import Sound
@@ -11,7 +12,7 @@ WIDTH = 15
 HEIGHT = 1
 ANCHOR='w'
 BUTTONS_PER_COLUMN = 15
-
+FONT_SIZE = 8
 
 
 
@@ -40,6 +41,9 @@ class SoundBoardGUI:
         self.root.title("Soundboard")
         self.root.geometry("1024x480")
         self.root.configure(background='black')
+        default_font = tkFont.nametofont("TkTextFont")
+        default_font.configure(size=FONT_SIZE)
+        self.root.option_add("*Font", default_font)
         #tkinter.Entry(self.window, state=DISABLED)
 
         row = 0
@@ -63,8 +67,16 @@ class SoundBoardGUI:
                     column = 0
                     row += 1
                 sound_path = os.path.join(SOUNDS_DIRECTORY, filename)
+                sound_entry = Sound.SoundEntry(sound_path)
                 self.soundCollection.addSoundEntry(sound_entry)
-                button = tk.Button(self.root, text=os.path.basename(filename), width=WIDTH, anchor='w', command=partial(self.makeSoundAndPlayIt, sound_path))
+
+                background = "white"
+                if sound_entry.getLengthOfSoundInSeconds() > 3:
+                    background = "red"
+
+
+
+                button = tk.Button(self.root, text=os.path.basename(filename), width=WIDTH, anchor='w', command=partial(self.makeSoundAndPlayIt, sound_path), background=background)
                 button.grid(column=column, row=row)
                 column += 1
 
