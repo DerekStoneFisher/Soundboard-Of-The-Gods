@@ -129,10 +129,17 @@ class SoundBoardController:
             self.getCurrentSoundEntry().markCurrentFrameIndex()
         elif self.keyPressManager.endingKeysEqual(["1", "2"]):
             self.swapCurrentAndPreviousSoundEntry()
-        elif self.keyPressManager.endingKeysEqual(["1", "5"]) or self.keyPressManager.endingKeysEqual(["oem_3"]):
-            self.getCurrentSoundEntry().stop() # no new thread needed
+        elif self.keyPressManager.endingKeysEqual(["oem_3"]):
+             self.getCurrentSoundEntry().stop() # no new thread needed
         elif self.keyPressManager.endingKeysEqual(["1", "6"]) :
             self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
+        elif self.keyPressManager.endingKeysEqual(["1", "5"]):
+            if self.getCurrentSoundEntry().is_playing:
+                self.getCurrentSoundEntry().markCurrentFrameIndex()
+                self.getCurrentSoundEntry().stop()
+            else:
+                self.getCurrentSoundEntry().reset_frame_index_on_play = False
+                self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
 
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):
