@@ -1,3 +1,4 @@
+import Audio_Utils
 import tkinter as tk
 import tkinter.font as tkFont
 from functools import partial
@@ -11,7 +12,7 @@ ENTIRE_SOUNDBOARD_DIRECTORY = "C:/Users/Admin/Desktop/Soundboard"
 WIDTH = 15
 HEIGHT = 1
 ANCHOR='w'
-BUTTONS_PER_COLUMN = 15
+BUTTONS_PER_COLUMN = 18
 FONT_SIZE = 8
 
 
@@ -71,7 +72,7 @@ class SoundBoardGUI:
                 self.soundCollection.addSoundEntry(sound_entry)
 
                 background = "white"
-                if sound_entry.getLengthOfSoundInSeconds() > 3:
+                if Audio_Utils.framesToSeconds(len(sound_entry.frames)) > 3:
                     background = "red"
 
 
@@ -84,16 +85,36 @@ class SoundBoardGUI:
             column = 0
 
         if os.path.exists(ENTIRE_SOUNDBOARD_DIRECTORY):
-            all_wave_files = [dp + "/" + f for dp, dn, filenames in os.walk(ENTIRE_SOUNDBOARD_DIRECTORY) for f in
-                            filenames if os.path.splitext(f)[1] == '.wav' and dp + "/" + f not in self.soundCollection.key_bind_map.values()]
+            for directory_path, directory_name, filenames in os.walk(ENTIRE_SOUNDBOARD_DIRECTORY):
+                for filename in filenames:
+                    print filename
 
+            all_wave_files = [dp + "/" + f for dp, dn, filenames in os.walk(ENTIRE_SOUNDBOARD_DIRECTORY) for f in
+                            filenames if os.path.splitext(f)[1] == '.wav' and dp + "/" + f not in self.soundCollection.sound_entry_path_map.keys()]
+
+
+            last_folder = ""
             for filename in all_wave_files:
+                filename = filename.replace("\\", "/")
+                if (filename.split("/")[-3] != last_folder):
+
+                    column += 5
+                last_folder = filename.split("/")[-3]
                 if column > BUTTONS_PER_COLUMN:
                     column = 0
                     row += 1
 
+
+
                 sound_path = os.path.join(SOUNDS_DIRECTORY, filename)
-                button = tk.Button(self.root, text=os.path.basename(filename), width=WIDTH, anchor='w', command=partial(self.makeSoundAndPlayIt, sound_path))
+                seconds = os.path.getsize(sound_path)/float(198656)
+                # print sound_path, seconds
+
+                background = "white"
+                if seconds > 3:
+                    background = "red"
+
+                button = tk.Button(self.root, text=os.path.basename(filename), width=WIDTH, anchor='w', command=partial(self.makeSoundAndPlayIt, sound_path), background=background)
                 button.grid(column=column, row=row)
                 column += 1
 
