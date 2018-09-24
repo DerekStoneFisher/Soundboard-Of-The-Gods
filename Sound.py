@@ -218,9 +218,10 @@ class SoundEntry:
         self.p = pyaudio.PyAudio()
         self.stream_in_use = False
 
-        self.mark_frame_index = False
         self.jump_to_marked_frame_index = True
+        self.frame_index = 0
         self.marked_frame_index = 0
+        self.reset_frame_index_on_play = True
 
         self.slow_motion_slow_rate = .01 # how much each frame is slowed down or sped up by when we activate slow mo or speed up
         # self.slow_motion_slow_frames = 80 # over the course of how many frames will we slow down or speed up when activating
@@ -254,16 +255,19 @@ class SoundEntry:
         self.is_playing = True
         self.continue_playing = True
 
-        frame_index = 0
-        while frame_index < len(self.frames) and self.continue_playing:
-            if self.mark_frame_index:
-                self.marked_frame_index = max(0, frame_index-5)
-                self.mark_frame_index = False
-            elif self.jump_to_marked_frame_index:
-                frame_index = self.marked_frame_index
+        if self.reset_frame_index_on_play:
+            self.frame_index = 0
+        else:
+            self.frame_index = self.marked_frame_index
+            self.reset_frame_index_on_play = True # auto switch back after one play
+
+
+        while self.frame_index < len(self.frames) and self.continue_playing:
+            if self.jump_to_marked_frame_index:
+                self.frame_index = self.marked_frame_index
                 self.jump_to_marked_frame_index = False
 
-            current_frame = self.frames[frame_index]
+            current_frame = self.frames[self.frame_index]
 
             if self.half_oscillation_cycles_remaining > 0:
                 if self.oscillation_frame_counter % self.frames_between_oscillate_shifts == 0:
@@ -299,10 +303,10 @@ class SoundEntry:
 
             if self.pitch_modifier != 0:
                 current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
-                if frame_index % 100 == 0: print "current pitch is ", self.pitch_modifier
+                if self.frame_index % 100 == 0: print "current pitch is ", self.pitch_modifier
 
             self._writeFrameToStreams(current_frame)
-            frame_index += 1
+            self.frame_index += 1
 
         self.is_playing = False
         SHARED_STREAM_COLLECTION.releaseStreamAtIndex(self.shared_steam_index)
@@ -320,7 +324,7 @@ class SoundEntry:
         self.marked_frame_index = max(0, self.marked_frame_index+Audio_Utils.secondsToFrames(move_amount)) # shift back in frames by .2 seconds. used max() with 0 to not get out of bounds error
 
     def markCurrentFrameIndex(self):
-        self.mark_frame_index = True # in the loop of the self.Play() method, we check to see if this is true. if it is true, we mark the current frame index and then set this back to false
+        self.marked_frame_index = max(0, self.frame_index-5)
 
     def jumpToMarkedFrameIndex(self):
         self.jump_to_marked_frame_index = True
@@ -351,6 +355,12 @@ class SoundEntry:
         self.frames = Audio_Utils.getFramesFromFile(self.path_to_sound)
         self.frames = Audio_Utils.getFramesWithoutStartingSilence(self.frames)
         self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
+
+    def getLengthOfSoundInSeconds(self):
+        return Audio_Utils.framesToSeconds(len(self.frames))
+
+
+
 
     def __eq__(self, other):
         return type(self) == type(other) and self.path_to_sound == other.path_to_sound

@@ -1,10 +1,8 @@
 import os
-import Audio_Utils
-import threading
 from SoundBoard_GUI import SoundBoardGUI
-import pythoncom
 import pyHook
 from Recorder import AudioRecorder
+from Json_Editor import runJsonUpdateRoutine
 
 from Sound import SoundEntry, SoundCollection
 from KeyPress import KeyPressManager
@@ -14,6 +12,9 @@ SOUND_QUEUE_MAX_SIZE = 5
 PITCH_MODIFIERS = {'1':-.75, '2':-.6, '3':-.45, '4':-.3, '5':-.15, '6':0, '7':.15, '8':.3, '9':.45, '0':.6} # how much is the pitch shifted for each step in "piano-mode"
 PITCH_SHIFT_AMOUNT = .1 # what multiplier is used to adjust the pitch with the left and right arrows
 SHIFT_SECONDS = .15 # by how many seconds will the up and down arrows move the marked frame index
+SOUNDBOARD_JSON_FILE = "Board1.json"
+SOUNDBOARD_JSON_FILE_EDITED = "Board1_edited.json"
+SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH = "C:/Users/Admin/Desktop/Soundboard"
 
 
 class SoundBoardController:
@@ -129,10 +130,17 @@ class SoundBoardController:
             self.getCurrentSoundEntry().markCurrentFrameIndex()
         elif self.keyPressManager.endingKeysEqual(["1", "2"]):
             self.swapCurrentAndPreviousSoundEntry()
-        elif self.keyPressManager.endingKeysEqual(["1", "5"]) or self.keyPressManager.endingKeysEqual(["oem_3"]):
-            self.getCurrentSoundEntry().stop() # no new thread needed
+        elif self.keyPressManager.endingKeysEqual(["oem_3"]):
+             self.getCurrentSoundEntry().stop() # no new thread needed
         elif self.keyPressManager.endingKeysEqual(["1", "6"]) :
             self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
+        elif self.keyPressManager.endingKeysEqual(["1", "5"]):
+            if self.getCurrentSoundEntry().is_playing:
+                self.getCurrentSoundEntry().markCurrentFrameIndex()
+                self.getCurrentSoundEntry().stop()
+            else:
+                self.getCurrentSoundEntry().reset_frame_index_on_play = False
+                self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
 
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):
@@ -144,10 +152,13 @@ class SoundBoardController:
 
 
 if __name__ == "__main__":
+    runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
+
     soundCollection = SoundCollection()
-    soundCollection.ingestSoundboardJsonConfigFile("Board1.json")
+    soundCollection.ingestSoundboardJsonConfigFile(SOUNDBOARD_JSON_FILE_EDITED)
     for key_bind in soundCollection.key_bind_map:
         print list(key_bind), os.path.basename(soundCollection.key_bind_map[key_bind].path_to_sound)
+
     keyPressManager = KeyPressManager()
     audioRecorder = AudioRecorder()
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)
