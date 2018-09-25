@@ -211,6 +211,7 @@ class SoundEntry:
         # print "initializing sound:", os.path.basename(path_to_sound), "with key bind:", ", ".join(activation_keys)
         self.activation_keys = activation_keys
         self.frames = frames
+        self.reverse_frames = frames
         self.is_playing = is_playing
         self.continue_playing = continue_playing
         self.pitch_modifier = pitch_modifier
@@ -365,8 +366,9 @@ class SoundEntry:
         self.frames = Audio_Utils.getFramesWithoutStartingSilence(self.frames)
         self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
         # self.frames = Audio_Utils.getReversedFrames(self.frames)
-        # back_to_normal = Audio_Utils.getReversedFrames(self.frames)
-        # print ""
+
+
+
 
     def getLengthOfSoundInSeconds(self):
         return Audio_Utils.framesToSeconds(len(self.frames))
@@ -379,3 +381,42 @@ class SoundEntry:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+
+
+
+
+
+
+
+'''
+[1 2 3 4 5] value of 2 at index 1
+   .
+[5 4 3 2 1] value of 2 at index -1 + -
+
+
+[1 2 3 4 5 6 7 8] value of 3 at index 2
+     .
+[8 7 6 5 4 3 2 1] value of 6 at index -1 + -2
+
+
+[1 2 3 4 5 6 7 8] value of 3 at index 2
+           .
+[8 7 6 5 4 3 2 1] value of 3 at index -1 + -2
+-(-3 + 1) = 2
+
+frames = [1 2 3 4 5 6 7 8]
+reversed_frames = ''.join(forward_frames)[::-1]
+
+if toggle_reverse:
+	frame_index = frames[-(1 + frame_index)]
+	reverse_enabled = frame_index < 0
+	toggle_reverse = not toggle_reverse
+	frames, reversed_frames = reversed_frames, frames
+	
+	
+if reverse_enabled:
+	frame_index -= 1
+else:
+	frame_index += 1
+'''

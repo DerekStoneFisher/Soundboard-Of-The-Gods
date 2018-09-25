@@ -53,50 +53,33 @@ def getFramesFromFile(filename):
 def getReversedFrames(frames):
     reversed_frames = []
     for frame in frames:
-        reversed_frames.append(getReverseFrame(frame))
+        reversed_frame = getReversedFrame(frame)
+        reversed_frames.append(reversed_frame)
     return reversed_frames[::-1]
 
-def getReverseFrame(frame):
+def getReversedFrame(frame):
+    atomic_audio_chunks = []
+    # assuming stereo and 16bit int wav sound, atomic audio unit contains 4 str chars
+    # first 2 chars represent audio for channel 1, second 2 chars represent audio for channel 2
+
+    # unpack the str into atomic audio chunks (4 bytes or 4 chars) by zipping every 4 chars into a tuple
     frame_iter = iter(frame)
-    zipped_frame = zip(frame_iter, frame_iter)
+    frame_zipped_into_atomic_audio_chunks = zip(frame_iter, frame_iter, frame_iter, frame_iter)
 
-    zipped_frame_reverse = zipped_frame[::-1]
-    unzipped_frame_reversed = []
-    for x,y in zipped_frame_reverse:
-        unzipped_frame_reversed.append(x+y)
-    return unzipped_frame_reversed
+    for zipped in frame_zipped_into_atomic_audio_chunks:
+        unzipped_atomic_audio_chunk = zipped[0] + zipped[1] + zipped[2] + zipped[3]
 
-def getReversedFramesFromFile(filename):
-    try:
-        if os.path.exists(filename):
-            wf = wave.open(filename, 'rb')
-            frames = []
-            frame = wf.readframes(2)
-            while frame != '':
-                frames.append(frame)
-                frame = wf.readframes(2)
-            wf.close()
-            frames = frames[::-1]
+        unpacked = struct.unpack('<2H', unzipped_atomic_audio_chunk) # little endian 2 16bit ints
+        repacked = struct.pack('<2H', unpacked[0], unpacked[1])
+        atomic_audio_chunks.append(repacked)
+    atomic_audio_chunks = atomic_audio_chunks[::-1]
 
-            frames_as_1024_chunks = []
-            temp_list = []
-            for word in frames:
-                temp_list.append(word)
-                if len(temp_list)*2 == 1024:
-                    temp_list_as_1024_chunk = b''.join(temp_list)
-                    frames_as_1024_chunks.append(temp_list_as_1024_chunk)
-                    temp_list = []
+    reversed_frame = ''
+    for atomic_audio_chunk in atomic_audio_chunks:
+        reversed_frame += atomic_audio_chunk
 
-            if len(temp_list) != 0:
-                temp_list_as_1024_chunk = b''.join(temp_list)
-                frames_as_1024_chunks.append(temp_list_as_1024_chunk)
+    return reversed_frame
 
-            return frames_as_1024_chunks
-        else:
-            print "error: cannot write file to frames because file does not exist\tfilename=" + str(filename)
-    except:
-        print "failed to getFramesFromfile for filename" + filename
-        raise
 
 
 
