@@ -238,6 +238,8 @@ class SoundEntry:
         self.current_sharedStream = None
         self.shared_steam_index = None
 
+        self.reverse_mode = False
+
 
         if self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
@@ -306,7 +308,14 @@ class SoundEntry:
                 if self.frame_index % 100 == 0: print "current pitch is ", self.pitch_modifier
 
             self._writeFrameToStreams(current_frame)
-            self.frame_index += 1
+
+            if self.reverse_mode:
+                self.frame_index = max(0, self.frame_index-1) # prevent out of bounds
+                if self.frame_index == 0:
+                    self.reverse_mode = False
+                    self.stop()
+            else:
+                self.frame_index += 1
 
         self.is_playing = False
         SHARED_STREAM_COLLECTION.releaseStreamAtIndex(self.shared_steam_index)
@@ -355,6 +364,9 @@ class SoundEntry:
         self.frames = Audio_Utils.getFramesFromFile(self.path_to_sound)
         self.frames = Audio_Utils.getFramesWithoutStartingSilence(self.frames)
         self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
+        # self.frames = Audio_Utils.getReversedFrames(self.frames)
+        # back_to_normal = Audio_Utils.getReversedFrames(self.frames)
+        # print ""
 
     def getLengthOfSoundInSeconds(self):
         return Audio_Utils.framesToSeconds(len(self.frames))

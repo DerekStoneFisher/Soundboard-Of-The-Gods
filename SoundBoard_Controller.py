@@ -141,6 +141,10 @@ class SoundBoardController:
             else:
                 self.getCurrentSoundEntry().reset_frame_index_on_play = False
                 self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
+        elif self.keyPressManager.endingKeysEqual(["2", "5"]):
+            if not self.getCurrentSoundEntry().is_playing:
+                self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
+            self.getCurrentSoundEntry().reverse_mode = not self.getCurrentSoundEntry().reverse_mode
 
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):

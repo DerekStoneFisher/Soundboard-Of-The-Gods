@@ -1,4 +1,5 @@
 from pydub import AudioSegment
+import itertools
 import array
 import pydub.playback
 import wave
@@ -40,12 +41,62 @@ def getFramesFromFile(filename):
                 frames.append(frame)
                 frame = wf.readframes(1024)
             wf.close()
+            # x = getReversedFramesFromFile(filename)
             return frames
         else:
             print "error: cannot write file to frames because file does not exist\tfilename=" + str(filename)
     except:
-        print "failed to getFramesFromfile for filename", filename
+        print "failed to getFramesFromfile for filename"+filename
+        raise
 
+
+def getReversedFrames(frames):
+    reversed_frames = []
+    for frame in frames:
+        reversed_frames.append(getReverseFrame(frame))
+    return reversed_frames[::-1]
+
+def getReverseFrame(frame):
+    frame_iter = iter(frame)
+    zipped_frame = zip(frame_iter, frame_iter)
+
+    zipped_frame_reverse = zipped_frame[::-1]
+    unzipped_frame_reversed = []
+    for x,y in zipped_frame_reverse:
+        unzipped_frame_reversed.append(x+y)
+    return unzipped_frame_reversed
+
+def getReversedFramesFromFile(filename):
+    try:
+        if os.path.exists(filename):
+            wf = wave.open(filename, 'rb')
+            frames = []
+            frame = wf.readframes(2)
+            while frame != '':
+                frames.append(frame)
+                frame = wf.readframes(2)
+            wf.close()
+            frames = frames[::-1]
+
+            frames_as_1024_chunks = []
+            temp_list = []
+            for word in frames:
+                temp_list.append(word)
+                if len(temp_list)*2 == 1024:
+                    temp_list_as_1024_chunk = b''.join(temp_list)
+                    frames_as_1024_chunks.append(temp_list_as_1024_chunk)
+                    temp_list = []
+
+            if len(temp_list) != 0:
+                temp_list_as_1024_chunk = b''.join(temp_list)
+                frames_as_1024_chunks.append(temp_list_as_1024_chunk)
+
+            return frames_as_1024_chunks
+        else:
+            print "error: cannot write file to frames because file does not exist\tfilename=" + str(filename)
+    except:
+        print "failed to getFramesFromfile for filename" + filename
+        raise
 
 
 
@@ -170,8 +221,8 @@ def framesToSeconds(number_of_frames):
     return number_of_frames * 0.0057
 
 def getVolumeOfFrame(frame):
-    # return max(array.array('h', frame))
-    return sum(array.array('h', frame)) / len(array.array('h', frame))
+    return max(array.array('h', frame))
+    # return sum(array.array('h', frame)) / len(array.array('h', frame))
 
 def getFramesWithoutStartingSilence(frames):
     for i in range(0, len(frames)):
