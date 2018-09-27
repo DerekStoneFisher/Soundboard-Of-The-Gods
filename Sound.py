@@ -250,6 +250,9 @@ class SoundEntry:
             self.virtual_speaker_stream = None
 
     def play(self):
+        if self.frames is None:
+            raise ValueError("Error: cannot play sound self.frames == None. The sound file was most likely deleted. sound = " + self.path_to_sound)
+
         if self.current_sharedStream is None:
             self.current_sharedStream, self.shared_steam_index = SHARED_STREAM_COLLECTION.getUnusedStreamAndIndex()
         if self.frames is None and os.path.exists(self.path_to_sound):
@@ -315,6 +318,7 @@ class SoundEntry:
                 if self.frame_index == 0:
                     self.reverse_mode = False
                     self.stop()
+                    self.reset_frame_index_on_play = False
             else:
                 self.frame_index += 1
 
@@ -324,7 +328,10 @@ class SoundEntry:
 
     def _writeFrameToStreams(self, frame):
         self.stream_in_use = True
-        self.current_sharedStream.playFrame(frame)
+        if self.reverse_mode:
+            self.current_sharedStream.playFrame(Audio_Utils.getReversedFrame(frame))
+        else:
+            self.current_sharedStream.playFrame(frame)
         self.stream_in_use = False
 
     def stop(self):

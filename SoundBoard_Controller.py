@@ -11,7 +11,7 @@ import thread
 SOUND_QUEUE_MAX_SIZE = 5
 PITCH_MODIFIERS = {'1':-.75, '2':-.6, '3':-.45, '4':-.3, '5':-.15, '6':0, '7':.15, '8':.3, '9':.45, '0':.6} # how much is the pitch shifted for each step in "piano-mode"
 PITCH_SHIFT_AMOUNT = .1 # what multiplier is used to adjust the pitch with the left and right arrows
-SHIFT_SECONDS = .15 # by how many seconds will the up and down arrows move the marked frame index
+SHIFT_SECONDS = .1 # by how many seconds will the up and down arrows move the marked frame index
 SOUNDBOARD_JSON_FILE = "Board1.json"
 SOUNDBOARD_JSON_FILE_EDITED = "Board1_edited.json"
 SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH = "C:/Users/Admin/Desktop/Soundboard"
@@ -144,7 +144,8 @@ class SoundBoardController:
         elif self.keyPressManager.endingKeysEqual(["2", "5"]):
             if not self.getCurrentSoundEntry().is_playing:
                 self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
-            self.getCurrentSoundEntry().reverse_mode = not self.getCurrentSoundEntry().reverse_mode
+            else:
+                self.getCurrentSoundEntry().reverse_mode = not self.getCurrentSoundEntry().reverse_mode
 
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):

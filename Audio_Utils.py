@@ -69,9 +69,9 @@ def getReversedFrame(frame):
     for zipped in frame_zipped_into_atomic_audio_chunks:
         unzipped_atomic_audio_chunk = zipped[0] + zipped[1] + zipped[2] + zipped[3]
 
-        unpacked = struct.unpack('<2H', unzipped_atomic_audio_chunk) # little endian 2 16bit ints
-        repacked = struct.pack('<2H', unpacked[0], unpacked[1])
-        atomic_audio_chunks.append(repacked)
+        # unpacked = struct.unpack('<2H', unzipped_atomic_audio_chunk) # little endian 2 16bit ints
+        # repacked = struct.pack('<2H', unpacked[0], unpacked[1])
+        atomic_audio_chunks.append(unzipped_atomic_audio_chunk)
     atomic_audio_chunks = atomic_audio_chunks[::-1]
 
     reversed_frame = ''
