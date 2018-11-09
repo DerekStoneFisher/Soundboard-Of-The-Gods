@@ -78,11 +78,17 @@ class SoundBoardController:
         return self.previous_sounds_queue[-2]
 
     def swapCurrentAndPreviousSoundEntry(self):
+        print "'", self.previous_sounds_queue[-1].getSoundName()  + "' -> '" + self.previous_sounds_queue[-2].getSoundName() + "'"
         self.previous_sounds_queue[-1], self.previous_sounds_queue[-2] = self.previous_sounds_queue[-2], self.previous_sounds_queue[-1]
 
     def _updateSoundboardConfiguration(self):
         if self.keyPressManager.keysAreContainedInKeysDown(["1", "4"]):  # we use more lenient matching for this one
-            thread.start_new_thread(self.getCurrentSoundEntry().jumpToMarkedFrameIndex,tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
+            thread.start_new_thread(self.getCurrentSoundEntry().jumpToMarkedFrameIndex, tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
+        if self.keyPressManager.keysAreContainedInKeysDown(["tab", "4"]):  # we use more lenient matching for this one
+            thread.start_new_thread(self.getCurrentSoundEntry().jumpToSecondaryMarkedFrameIndex, tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
+        elif self.keyPressManager.keysAreContainedInKeysDown(["1", "7"]):
+            thread.start_new_thread(self.getCurrentSoundEntry().resumePlayingBeforeLastJump, tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
+
 
         if len(self.keyPressManager.getKeysDown()) >= 2 and self.keyPressManager.getKeysDown()[0] == "menu" and self.keyPressManager.getKeysDown()[-1] in PITCH_MODIFIERS:
             self.getCurrentSoundEntry().pitch_modifier = PITCH_MODIFIERS[self.keyPressManager.getKeysDown()[-1]]
@@ -103,11 +109,11 @@ class SoundBoardController:
             self.getCurrentSoundEntry().shiftPitch(PITCH_SHIFT_AMOUNT)
 
         # non-sound specific configuration key binds
-        elif self.keyPressManager.endingKeysEqual(["2","3","4"]) or keyPressManager.endingKeysEqual(["pause"]):
+        elif keyPressManager.endingKeysEqual(["pause"]):
             self.pause_soundboard = not self.pause_soundboard
             self.soundCollection.stopAllSounds()
-        elif self.keyPressManager.endingKeysEqual(["1","2","3"]):
-            self.hold_to_play = not self.hold_to_play
+        # elif self.keyPressManager.endingKeysEqual(["1","2","3"]):
+        #     self.hold_to_play = not self.hold_to_play
 
 
 
@@ -116,7 +122,7 @@ class SoundBoardController:
             self.getCurrentSoundEntry().activateSlowMotion()
         elif self.keyPressManager.endingKeysEqual(["tab", "up"]):
             self.getCurrentSoundEntry().activateSpeedUpMotion()
-        elif self.keyPressManager.endingKeysEqual(["tab","oem_5"] or self.keyPressManager.endingKeysEqual("oem_5")): # tab \
+        elif self.keyPressManager.endingKeysEqual(["tab","oem_5"] or self.keyPressManager.endingKeysEqual(["oem_5", "delete"])): # tab \
             self.getCurrentSoundEntry().activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "oem_4"]): # tab [
             self.getCurrentSoundEntry().oscillate_shift += .01
@@ -128,6 +134,8 @@ class SoundBoardController:
             self.getCurrentSoundEntry().moveMarkedFrameIndex(-SHIFT_SECONDS)
         elif self.keyPressManager.endingKeysEqual(["1","3"]):
             self.getCurrentSoundEntry().markCurrentFrameIndex()
+        elif self.keyPressManager.endingKeysEqual(["tab", "3"]):
+            self.getCurrentSoundEntry().markSecondaryFrameIndex()
         elif self.keyPressManager.endingKeysEqual(["1", "2"]):
             self.swapCurrentAndPreviousSoundEntry()
         elif self.keyPressManager.endingKeysEqual(["oem_3"]):
@@ -146,6 +154,11 @@ class SoundBoardController:
                 self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
             else:
                 self.getCurrentSoundEntry().reverse_mode = not self.getCurrentSoundEntry().reverse_mode
+        elif self.keyPressManager.endingKeysEqual(["tab", "1"]): # stop current sound, swap to last sound and start playing
+            self.getCurrentSoundEntry().stop()
+            self.swapCurrentAndPreviousSoundEntry()
+            self.getCurrentSoundEntry().reset_frame_index_on_play = False
+            self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
 
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):
