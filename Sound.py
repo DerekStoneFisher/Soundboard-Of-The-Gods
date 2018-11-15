@@ -169,6 +169,7 @@ class SoundCollection:
         return None
 
     def playSoundToFinish(self, sound_to_play):
+        print "playing '" + sound_to_play.getSoundName() + "'"
         if not sound_to_play.is_playing: # if it not playing, start playing it
             thread.start_new_thread(sound_to_play.play, tuple())
         else: # if already playing, stop playing and restart the sound from the beginning
@@ -179,22 +180,6 @@ class SoundCollection:
                 time.sleep(.001)
                 counter += 1
             thread.start_new_thread(sound_to_play.play, tuple())
-
-
-    # def playSound(self, sound_to_play, last_sound_played=None, hold_to_play=False):
-    #     if hold_to_play and last_sound_played is not None: # if hold to play is on and we just let go of the key for a sound
-    #         thread.start_new_thread(last_sound_played.stop, tuple())
-    #     else:
-    #         if not sound_to_play.is_playing: # start playing it if it not playing
-    #             thread.start_new_thread(sound_to_play.play, tuple())
-    #         elif not hold_to_play: # stop playing it if hold_to_play is off and the key was let go
-    #             thread.start_new_thread(sound_to_play.stop, tuple())
-    #             counter = 0
-    #             while sound_to_play.stream_in_use and counter < 1000: # wait for the sound_entry to finish outputting its current chunk to the stream if it is in the middle of doing so
-    #                 if counter > 100: print "stream is still in use after waiting 100ms... something is not right"
-    #                 time.sleep(.001)
-    #                 counter += 1
-    #             thread.start_new_thread(sound_to_play.play, tuple())
 
 
 
@@ -219,10 +204,14 @@ class SoundEntry:
         self.p = pyaudio.PyAudio()
         self.stream_in_use = False
 
-        self.jump_to_marked_frame_index = True
         self.frame_index = 0
-        self.marked_frame_index = 0
         self.reset_frame_index_on_play = True
+
+        self.jump_to_marked_frame_index = False
+        self.marked_frame_index = 0
+
+        self.jump_to_secondary_frame_index = False
+        self.secondary_marked_frame_index = 0
 
         self.slow_motion_slow_rate = .01 # how much each frame is slowed down or sped up by when we activate slow mo or speed up
         # self.slow_motion_slow_frames = 80 # over the course of how many frames will we slow down or speed up when activating
@@ -240,6 +229,11 @@ class SoundEntry:
         self.shared_steam_index = None
 
         self.reverse_mode = False
+
+        # when set to true, skip to the position saved right before a "jump to marked frame index" jump was done
+        self.have_jumped = False
+        self.undo_marked_frame_jump = False
+        self.index_before_jump = 0
 
 
         if self.frames is None and os.path.exists(self.path_to_sound):
@@ -272,6 +266,12 @@ class SoundEntry:
             if self.jump_to_marked_frame_index:
                 self.frame_index = self.marked_frame_index
                 self.jump_to_marked_frame_index = False
+            elif self.jump_to_secondary_frame_index:
+                self.frame_index = self.secondary_marked_frame_index
+                self.jump_to_secondary_frame_index = False
+            elif self.undo_marked_frame_jump:
+                self.frame_index = self.index_before_jump + (self.frame_index - self.marked_frame_index)
+                self.undo_marked_frame_jump = False
 
             current_frame = self.frames[self.frame_index]
 
@@ -309,7 +309,10 @@ class SoundEntry:
 
             if self.pitch_modifier != 0:
                 current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
-                if self.frame_index % 100 == 0: print "current pitch is ", self.pitch_modifier
+                if self.frame_index % 100 == 0:
+                    print "current pitch is ", self.pitch_modifier
+                    print "oscillation shift is", self.oscillate_shift, "frames between oscillation shifts", self.frames_between_oscillate_shifts
+
 
             self._writeFrameToStreams(current_frame)
 
@@ -343,10 +346,29 @@ class SoundEntry:
     def markCurrentFrameIndex(self):
         self.marked_frame_index = max(0, self.frame_index-5)
 
+    def markSecondaryFrameIndex(self):
+        self.secondary_marked_frame_index = max(0, self.frame_index-5)
+
     def jumpToMarkedFrameIndex(self):
+        if not self.have_jumped: # if we jump multiple times in a row, don't overwrite our saved position before the jump
+            self.index_before_jump = self.frame_index
+            self.have_jumped = True
+
         self.jump_to_marked_frame_index = True
         if not self.is_playing:
             self.play()
+
+    def jumpToSecondaryMarkedFrameIndex(self):
+        self.jump_to_secondary_frame_index = True
+        if not self.is_playing:
+            self.play()
+
+    def resumePlayingBeforeLastJump(self):
+        if self.have_jumped:
+            self.undo_marked_frame_jump = True
+            self.have_jumped = False
+            if not self.is_playing:
+                self.play()
 
     def shiftPitch(self, amount):
         self.pitch_modifier += amount
