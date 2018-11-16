@@ -81,6 +81,15 @@ class SoundBoardController:
         print "'", self.previous_sounds_queue[-1].getSoundName()  + "' -> '" + self.previous_sounds_queue[-2].getSoundName() + "'"
         self.previous_sounds_queue[-1], self.previous_sounds_queue[-2] = self.previous_sounds_queue[-2], self.previous_sounds_queue[-1]
 
+    def clearAllNonPlayingSoundsFromTheFrontOfPreviousSoundsQueue(self):
+        last_playing_sound_index = 0
+        for i in range(0, len(self.previous_sounds_queue)):
+            if self.previous_sounds_queue[i].is_playing:
+                last_playing_sound_index = i
+        self.previous_sounds_queue = self.previous_sounds_queue[0:last_playing_sound_index+1]
+
+
+
     def _updateSoundboardConfiguration(self):
         if self.keyPressManager.keysAreContainedInKeysDown(["1", "4"]):  # we use more lenient matching for this one
             thread.start_new_thread(self.getCurrentSoundEntry().jumpToMarkedFrameIndex, tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
@@ -95,6 +104,9 @@ class SoundBoardController:
             thread.start_new_thread(self.getCurrentSoundEntry().jumpToMarkedFrameIndex, tuple()) # need to call via a thread so we don't get blocked by the .play() which can get called by this function
 
        # key binds that affect all sounds in the sound collection
+        elif keyPressManager.endingKeysEqual(["tab", "return"]): # tab + enter -> clear non-playing sounds from the "recent sounds queue"
+            print "self.clearAllNonPlayingSoundsFromTheFrontOfPreviousSoundsQueue()"
+            self.clearAllNonPlayingSoundsFromTheFrontOfPreviousSoundsQueue()
         elif self.keyPressManager.endingKeysEqual(["return"]): # enter -> stop all currently playing sounds
             self.soundCollection.stopAllSounds()
         elif self.keyPressManager.endingKeysEqual(["left", "right"]): # left + right -> reset pitch of all sounds
@@ -159,6 +171,8 @@ class SoundBoardController:
             self.swapCurrentAndPreviousSoundEntry()
             self.getCurrentSoundEntry().reset_frame_index_on_play = False
             self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
+        elif self.keyPressManager.endingKeysEqual(["tab", "2"]):
+            self.getCurrentSoundEntry().time_stretch_enabled = True
 
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):

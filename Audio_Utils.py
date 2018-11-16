@@ -57,28 +57,46 @@ def getReversedFrames(frames):
         reversed_frames.append(reversed_frame)
     return reversed_frames[::-1]
 
+
 def getReversedFrame(frame):
-    atomic_audio_chunks = []
+    atomic_audio_units = unpackFrameIntoAtomicAudioUnits(frame)
+    print len(atomic_audio_units)
+    atomic_audio_units = atomic_audio_units[::-1]
+    return buildFrameFromAtomicAudioUnits(atomic_audio_units)
+
+
+def unpackFrameIntoAtomicAudioUnits(frame):
+    atomic_audio_units = []
     # assuming stereo and 16bit int wav sound, atomic audio unit contains 4 str chars
     # first 2 chars represent audio for channel 1, second 2 chars represent audio for channel 2
 
-    # unpack the str into atomic audio chunks (4 bytes or 4 chars) by zipping every 4 chars into a tuple
+    # unpack the str into atomic audio units (4 bytes or 4 chars) by zipping every 4 chars into a tuple
     frame_iter = iter(frame)
-    frame_zipped_into_atomic_audio_chunks = zip(frame_iter, frame_iter, frame_iter, frame_iter)
+    frame_zipped_into_atomic_audio_units = zip(frame_iter, frame_iter, frame_iter, frame_iter)
 
-    for zipped in frame_zipped_into_atomic_audio_chunks:
-        unzipped_atomic_audio_chunk = zipped[0] + zipped[1] + zipped[2] + zipped[3]
+    for zipped in frame_zipped_into_atomic_audio_units:
+        unzipped_atomic_audio_unit = zipped[0] + zipped[1] + zipped[2] + zipped[3]
+        atomic_audio_units.append(unzipped_atomic_audio_unit)
 
-        # unpacked = struct.unpack('<2H', unzipped_atomic_audio_chunk) # little endian 2 16bit ints
-        # repacked = struct.pack('<2H', unpacked[0], unpacked[1])
-        atomic_audio_chunks.append(unzipped_atomic_audio_chunk)
-    atomic_audio_chunks = atomic_audio_chunks[::-1]
+    return atomic_audio_units
 
-    reversed_frame = ''
-    for atomic_audio_chunk in atomic_audio_chunks:
-        reversed_frame += atomic_audio_chunk
+def buildFrameFromAtomicAudioUnits(atomic_wav_bytes):
+    new_frame = ''
+    for atomic_audio_chunk in atomic_wav_bytes:
+        new_frame += atomic_audio_chunk
+    
+    return new_frame
 
-    return reversed_frame
+    
+def getTimeStretchedFrame(frame, time_strech_amount, is_increase):
+    atomic_audio_units = unpackFrameIntoAtomicAudioUnits(frame)
+    print len(atomic_audio_units)
+    atomic_audio_units = [x for i,x in enumerate(atomic_audio_units) if i % 2 == 0]
+    print len(atomic_audio_units)
+    return buildFrameFromAtomicAudioUnits(atomic_audio_units)
+
+
+
 
 
 
@@ -88,7 +106,7 @@ def getNormalizedAudioFrames(frames, target_dBFS):
     sound = AudioSegment(b''.join(frames), sample_width=sample_width, frame_rate=44100, channels=2)
     normalized_sound = getSoundWithMatchedAmplitude(sound, target_dBFS)
     normalized_sound_as_bytestring = normalized_sound.raw_data
-    normalized_bytestream_as_frame_list = [normalized_sound_as_bytestring[i:i+1024] for i in range(0, len(normalized_sound_as_bytestring), 1024)] # slice bystestring into chunks of 1024 bytes
+    normalized_bytestream_as_frame_list = [normalized_sound_as_bytestring[i:i+1024] for i in range(0, len(normalized_sound_as_bytestring), 1024)] # slice bystestring into units of 1024 bytes
     return normalized_bytestream_as_frame_list
 
 def getSoundWithMatchedAmplitude(sound, target_dBFS):
@@ -196,6 +214,8 @@ def getPitchShiftedFrame(frame, octaves):
     lowpitch_sound = lowpitch_sound.set_frame_rate(44100)
 
     return lowpitch_sound.raw_data
+
+
 
 def secondsToFrames(number_of_seconds):
     return int(number_of_seconds / 0.0057)

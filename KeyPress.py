@@ -2,6 +2,9 @@ from Audio_Proj_Const import NAME_OVERRIDE_LIST
 
 KEY_STATE_QUEUE_MAX_SIZE = 5
 
+PUSH_TO_TALK_KEY = 'x'
+KEYS_TO_IGNORE = []
+
 class KeyPressManager:
     def __init__(self):
         self._key_state_queue = [[],[],[],[],[]]
@@ -14,11 +17,9 @@ class KeyPressManager:
         if key in NAME_OVERRIDE_LIST:
             key = NAME_OVERRIDE_LIST[key]
 
-
-
         keys_down = list(self.getKeysDown())
 
-        if "down" in key_event.MessageName and key not in keys_down:
+        if "down" in key_event.MessageName and key not in keys_down and key not in KEYS_TO_IGNORE:
             self.last_event_was_key_release = False
             keys_down.append(key)
             print keys_down

@@ -51,18 +51,18 @@ class SoundBoardGUI:
 
         row = 0
         column = 0
-        for sound_entry in self.soundCollection.sound_entry_list_from_json:
-            if column > BUTTONS_PER_COLUMN:
-                column = 0
-                row += 1
-            button = tk.Button(self.root, text=sound_entry.getSoundName(), command=partial(self.soundBoardController.addSoundToQueueAndPlayIt, sound_entry), height=HEIGHT, width=WIDTH, anchor=ANCHOR)
-            button.grid(column=column, row=row)
-            column += 1
-
-        row += 1
-        self.root.grid_rowconfigure(row, minsize=25)
-        row += 1
-        column = 0
+        # for sound_entry in self.soundCollection.sound_entry_list_from_json:
+        #     if column > BUTTONS_PER_COLUMN:
+        #         column = 0
+        #         row += 1
+        #     button = tk.Button(self.root, text=sound_entry.getSoundName(), command=partial(self.soundBoardController.addSoundToQueueAndPlayIt, sound_entry), height=HEIGHT, width=WIDTH, anchor=ANCHOR)
+        #     button.grid(column=column, row=row)
+        #     column += 1
+        #
+        # row += 1
+        # self.root.grid_rowconfigure(row, minsize=25)
+        # row += 1
+        # column = 0
 
         if os.path.exists(SOUNDS_DIRECTORY):
             for filename in os.listdir(SOUNDS_DIRECTORY):
@@ -193,72 +193,3 @@ class SoundBoardGUI:
         button = tk.Button(self.root, text="stopAllSounds()", command=self.soundCollection.stopAllSounds, width=WIDTH, anchor='w')
         button.grid(column=column, row=row)
         #self.window.withdraw()
-
-
-    def asd(self, row, column):
-        folders = []
-        if os.path.exists(ENTIRE_SOUNDBOARD_DIRECTORY):
-            for directory_path, directory_name, filenames in os.walk(ENTIRE_SOUNDBOARD_DIRECTORY):
-                directory_path = directory_path.replace("\\", "/").replace(ENTIRE_SOUNDBOARD_DIRECTORY + "/", "")
-                prev_folders = folders
-                folders = directory_path.split("/")
-
-                if 'skrillex' in folders and 'skrillex' not in prev_folders:
-                    row += 1
-                if 'skrillex' in prev_folders and 'skrillex not in folders':
-                    row += 1
-
-                for filename in filenames:
-                    if column > BUTTONS_PER_COLUMN:
-                        column = 0
-                        row += 1
-
-                    sound_path = directory_path + "/" + filename
-                    is_wav_file = os.path.splitext(filename)[1] == '.wav'
-                    is_already_in_soundboard = directory_path + "/" + filename not in self.soundCollection.sound_entry_path_map.keys()
-
-                    background = "white"
-                    if is_wav_file and not is_already_in_soundboard:
-                        seconds = os.path.getsize(sound_path) / float(198656)
-                        if 'skrillex' in folders:
-                            background = "green"
-                        elif 'rap' in folders:
-                            background = "blue"
-                        elif seconds > 3:
-                            background = "red"
-
-                        button = tk.Button(self.root, text=os.path.basename(filename), width=WIDTH, anchor='w',
-                                           command=partial(self.makeSoundAndPlayIt, sound_path), background=background)
-                        button.grid(column=column, row=row)
-                        column += 1
-
-
-                print folders, filenames
-
-            all_wave_files = [dp + "/" + f for dp, dn, filenames in os.walk(ENTIRE_SOUNDBOARD_DIRECTORY) for f in
-                              filenames if os.path.splitext(f)[
-                                  1] == '.wav' and dp + "/" + f not in self.soundCollection.sound_entry_path_map.keys()]
-
-            last_folder = ""
-            for filename in all_wave_files:
-                filename = filename.replace("\\", "/")
-                if (filename.split("/")[-3] != last_folder):
-                    row += 1
-                    column = 0
-                last_folder = filename.split("/")[-3]
-                if column > BUTTONS_PER_COLUMN:
-                    column = 0
-                    row += 1
-
-                sound_path = os.path.join(SOUNDS_DIRECTORY, filename)
-                seconds = os.path.getsize(sound_path) / float(198656)
-                # print sound_path, seconds
-
-                background = "white"
-                if seconds > 3:
-                    background = "red"
-
-                button = tk.Button(self.root, text=os.path.basename(filename), width=WIDTH, anchor='w',
-                                   command=partial(self.makeSoundAndPlayIt, sound_path), background=background)
-                button.grid(column=column, row=row)
-                column += 1

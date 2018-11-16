@@ -187,7 +187,6 @@ class SoundCollection:
 class SoundEntry:
     def __init__(self, path_to_sound, frames=None, activation_keys=frozenset(), is_playing=False, continue_playing=True, pitch_modifier=0, wait_to_load_sound=True):
         """
-
         :type path_to_sound: str
         :type frames: list
         :type pitch_modifier: float
@@ -234,6 +233,11 @@ class SoundEntry:
         self.have_jumped = False
         self.undo_marked_frame_jump = False
         self.index_before_jump = 0
+
+        self.time_stretch_enabled = False
+        self.time_stretch_rate = 1
+        self.AUDIO_UNITS_PER_FRAME = (1024 / 2) / 2 # 1024 bytes per frame, 2 bytes for 1 16bit int, 2 channels = 1024/2/2 "audio units" per frame
+        self.time_stretched_audio_unit_buffer = []
 
 
         if self.frames is None and os.path.exists(self.path_to_sound):
@@ -331,11 +335,37 @@ class SoundEntry:
 
     def _writeFrameToStreams(self, frame):
         self.stream_in_use = True
-        if self.reverse_mode:
+        if self.time_stretch_enabled:
+            self._handleTimeStretchWriteFrameToStreams(frame)
+        elif self.reverse_mode:
             self.current_sharedStream.playFrame(Audio_Utils.getReversedFrame(frame))
         else:
             self.current_sharedStream.playFrame(frame)
         self.stream_in_use = False
+
+    def _handleTimeStretchWriteFrameToStreams(self, frame):
+        atomic_audio_units = Audio_Utils.unpackFrameIntoAtomicAudioUnits(frame)
+        atomic_audio_units = [x for i, x in enumerate(atomic_audio_units) if i % (1-self.pitch_modifier)*10 != 0]
+
+
+        print "atomic audio units size is " + str(len(atomic_audio_units)) + " and modulo is " + str((1-self.pitch_modifier)*10)
+        self.time_stretched_audio_unit_buffer.extend(atomic_audio_units)
+        # if buffer exactly full after adding stretched frame contents, play it and empty it
+        if len(self.time_stretched_audio_unit_buffer) == self.AUDIO_UNITS_PER_FRAME:
+            self.current_sharedStream.playFrame(Audio_Utils.buildFrameFromAtomicAudioUnits(self.time_stretched_audio_unit_buffer))
+            print str.format("exactly filled buffer {}", len(self.time_stretched_audio_unit_buffer))
+
+            self.time_stretched_audio_unit_buffer = []
+        # if buffer not yet full after adding stretched frame contents, do nothing
+        elif len(self.time_stretched_audio_unit_buffer) < self.AUDIO_UNITS_PER_FRAME:
+            print str.format("buffer not yet full. only size {}", len(self.time_stretched_audio_unit_buffer))
+        # if buffer overly-full after adding stretched frame contents, play the first non-overfilled part and save the overfilled part as the new buffer
+        elif len(self.time_stretched_audio_unit_buffer) > self.AUDIO_UNITS_PER_FRAME:
+            first_audio_units = self.time_stretched_audio_unit_buffer[0:self.AUDIO_UNITS_PER_FRAME]
+            remaining_audio_units = self.time_stretched_audio_unit_buffer[self.AUDIO_UNITS_PER_FRAME:]
+            self.current_sharedStream.playFrame(Audio_Utils.buildFrameFromAtomicAudioUnits(first_audio_units))
+            print str.format("filled buffer {} and remaining part {}", len(first_audio_units), len(remaining_audio_units))
+            self.time_stretched_audio_unit_buffer = remaining_audio_units
 
     def stop(self):
         self.continue_playing = False
@@ -402,50 +432,8 @@ class SoundEntry:
     def getLengthOfSoundInSeconds(self):
         return Audio_Utils.framesToSeconds(len(self.frames))
 
-
-
-
     def __eq__(self, other):
         return type(self) == type(other) and self.path_to_sound == other.path_to_sound
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-
-
-
-
-
-
-
-'''
-[1 2 3 4 5] value of 2 at index 1
-   .
-[5 4 3 2 1] value of 2 at index -1 + -
-
-
-[1 2 3 4 5 6 7 8] value of 3 at index 2
-     .
-[8 7 6 5 4 3 2 1] value of 6 at index -1 + -2
-
-
-[1 2 3 4 5 6 7 8] value of 3 at index 2
-           .
-[8 7 6 5 4 3 2 1] value of 3 at index -1 + -2
--(-3 + 1) = 2
-
-frames = [1 2 3 4 5 6 7 8]
-reversed_frames = ''.join(forward_frames)[::-1]
-
-if toggle_reverse:
-	frame_index = frames[-(1 + frame_index)]
-	reverse_enabled = frame_index < 0
-	toggle_reverse = not toggle_reverse
-	frames, reversed_frames = reversed_frames, frames
-	
-	
-if reverse_enabled:
-	frame_index -= 1
-else:
-	frame_index += 1
-'''
