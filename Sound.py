@@ -1,6 +1,8 @@
 import Audio_Utils
 import pyaudio
 import json
+
+import BPM_Utils
 from Audio_Proj_Const import KEY_ID_TO_NAME_MAP, convertJavaKeyIDToRegularKeyID
 import os
 import time, thread
@@ -235,6 +237,9 @@ class SoundEntry:
         self.undo_marked_frame_jump = False
         self.index_before_jump = 0
 
+        self.bpm = None
+        self.bpm_obj = BPM_Utils.BPM()
+
 
         if self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
@@ -403,6 +408,20 @@ class SoundEntry:
         return Audio_Utils.framesToSeconds(len(self.frames))
 
 
+    def autoDetectBpm(self):
+        self.bpm = BPM_Utils.getBpmFromWavFile(self.path_to_sound)
+        print self.getSoundName() + " has bpm " + str(self.bpm)
+
+    def matchBpmWithAnotherSound(self, anotherSound):
+        """
+        :type anotherSound: SoundEntry
+        """
+        if self.bpm is None:
+            self.autoDetectBpm()
+        if anotherSound.bpm is None:
+            anotherSound.autoDetectBpm()
+        self.pitch_modifier = 1 - (self.bpm / anotherSound.bpm)
+        print "setting pitch modifier of " + self.getSoundName() + " to " + str(self.pitch_modifier) + " to match bpm of " + anotherSound.getSoundName() + ". bpm changed from " + str(self.bpm) + " -> " + str(self.bpm)
 
 
     def __eq__(self, other):

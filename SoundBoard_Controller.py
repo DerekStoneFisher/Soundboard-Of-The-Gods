@@ -159,6 +159,17 @@ class SoundBoardController:
             self.swapCurrentAndPreviousSoundEntry()
             self.getCurrentSoundEntry().reset_frame_index_on_play = False
             self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
+        elif self.keyPressManager.endingKeysEqual(["tab", "6"]):
+            self.getCurrentSoundEntry().matchBpmWithAnotherSound(self.getPreviousSoundEntry())
+        elif self.keyPressManager.endingKeysEqual(["tab", "7"]):
+            self.getCurrentSoundEntry().autoDetectBpm()
+        elif self.keyPressManager.endingKeysEqual(["tab", "q"]):
+            self.getCurrentSoundEntry().bpm_obj.update()
+            print self.getCurrentSoundEntry().bpm_obj.avg_bpm
+        elif self.keyPressManager.endingKeysEqual(["tab", "w"]):
+            self.getCurrentSoundEntry().bpm = self.getCurrentSoundEntry().bpm_obj.avg_bpm
+        elif self.keyPressManager.endingKeysEqual(["tab", "e"]):
+            self.getCurrentSoundEntry().bpm_obj.restart()
 
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):
