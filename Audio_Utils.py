@@ -8,8 +8,7 @@ import shutil
 import datetime
 import struct
 import pyaudio
-import numpy as np
-import io
+import CONST
 import array
 
 DEFAULT_DBFS = -20.0
@@ -20,14 +19,13 @@ def writeFramesToFile(frames, filename, normalize=True):
     if os.path.exists(filename) and "Extended_Audio" not in filename:
         copyfileToBackupFolder(filename)
         os.remove(filename)
-    wf = wave.open(filename, 'wb')
-    wf.setnchannels(2)
-    wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
-    wf.setframerate(44100)
-    if normalize:
-        frames = getNormalizedAudioFrames(frames, DEFAULT_DBFS)
-    wf.writeframes(b''.join(frames))
-    wf.close()
+    with wave.open(filename, 'wb') as wf:
+        wf.setnchannels(CONST.CHANNELS)
+        wf.setsampwidth(CONST.SAMPLE_WIDTH)
+        wf.setframerate(CONST.FRAME_RATE)
+        if normalize:
+            frames = getNormalizedAudioFrames(frames, DEFAULT_DBFS)
+        wf.writeframes(b''.join(frames))
 
 
 
@@ -36,15 +34,14 @@ def getFramesFromFile(filename):
         if os.path.exists(filename):
             wf = wave.open(filename, 'rb')
             frames = []
-            frame = wf.readframes(1024)
+            frame = wf.readframes(CONST.FRAMES_PER_BUFFER)
             while frame != '':
                 frames.append(frame)
-                frame = wf.readframes(1024)
+                frame = wf.readframes(CONST.FRAMES_PER_BUFFER)
             wf.close()
-            # x = getReversedFramesFromFile(filename)
             return frames
         else:
-            print "error: cannot write file to frames because file does not exist\tfilename=" + str(filename)
+            raise ValueError("error: read from from file because file does not exist\tfilename=" + str(filename))
     except:
         print "failed to getFramesFromfile for filename"+filename
         raise
@@ -56,7 +53,6 @@ def getReversedFrames(frames):
         reversed_frame = getReversedFrame(frame)
         reversed_frames.append(reversed_frame)
     return reversed_frames[::-1]
-
 
 def getReversedFrame(frame):
     atomic_audio_units = unpackFrameIntoAtomicAudioUnits(frame)
@@ -84,10 +80,10 @@ def buildFrameFromAtomicAudioUnits(atomic_wav_bytes):
     new_frame = ''
     for atomic_audio_chunk in atomic_wav_bytes:
         new_frame += atomic_audio_chunk
-    
+
     return new_frame
 
-    
+
 def getTimeStretchedFrame(frame, time_strech_amount, is_increase):
     atomic_audio_units = unpackFrameIntoAtomicAudioUnits(frame)
     print len(atomic_audio_units)
@@ -102,11 +98,10 @@ def getTimeStretchedFrame(frame, time_strech_amount, is_increase):
 
 
 def getNormalizedAudioFrames(frames, target_dBFS):
-    sample_width = pyaudio.PyAudio().get_sample_size(pyaudio.paInt16)
-    sound = AudioSegment(b''.join(frames), sample_width=sample_width, frame_rate=44100, channels=2)
+    sound = AudioSegment(b''.join(frames), sample_width=CONST.SAMPLE_WIDTH, frame_rate=CONST.FRAME_RATE, channels=CONST.CHANNELS)
     normalized_sound = getSoundWithMatchedAmplitude(sound, target_dBFS)
     normalized_sound_as_bytestring = normalized_sound.raw_data
-    normalized_bytestream_as_frame_list = [normalized_sound_as_bytestring[i:i+1024] for i in range(0, len(normalized_sound_as_bytestring), 1024)] # slice bystestring into units of 1024 bytes
+    normalized_bytestream_as_frame_list = [normalized_sound_as_bytestring[i:i+CONST.FRAMES_PER_BUFFER] for i in range(0, len(normalized_sound_as_bytestring), CONST.FRAMES_PER_BUFFER)] # slice bystestring into chunks of 1024 bytes
     return normalized_bytestream_as_frame_list
 
 def getSoundWithMatchedAmplitude(sound, target_dBFS):
