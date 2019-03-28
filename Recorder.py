@@ -79,11 +79,13 @@ class AudioRecorder:
         self.curr_index -= 1
         if self.curr_index < 0:
             self.curr_index = len(self.previous_recordings)-1
+        self.updateSoundboardWithCurrRecording()
 
     def selectNextRecording(self):
         self.curr_index += 1
         if self.curr_index >= len(self.previous_recordings):
             self.curr_index = 0
+        self.updateSoundboardWithCurrRecording()
 
     def deleteCurrRecording(self):
         if len(self.previous_recordings) > 0:

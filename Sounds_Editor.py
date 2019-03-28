@@ -11,8 +11,12 @@ FONT_SIZE = 9
 
 class SoundsEditor:
     def __init__(self, keyPressManager):
+        self.root = tk.Tk()
         self.sounds = []
-        self.current_keys_down = []
+        self.saved_keys_down = []
+        self.saved_keys_down_str_var = tk.StringVar()
+        self.saved_keys_down_str_var.set("Saved Keys Down: ")
+
         self._buildWindow()
         self.getKeysPressedLabel()
         self._buildListBox()
@@ -20,7 +24,6 @@ class SoundsEditor:
         self.getAddSoundButton()
 
     def _buildWindow(self):
-        self.root = tk.Tk()
         self.root.title("Sounds Editor")
         self.root.geometry("1024x480")
         self.root.configure(background='black')
@@ -49,19 +52,25 @@ class SoundsEditor:
         scrollbar.config(command=listbox.yview)
 
     def getKeysPressedLabel(self):
-
+        pass
 
 
     def updateKeysDown(self):
         print('updateKeysDown')
-        print(self.keyPressManager.getKeysDown())
+        self.saved_keys_down = self.keyPressManager.getKeysDown()
+        self.saved_keys_down_str_var.set("Saved Keys Down: " + str(self.saved_keys_down))
+        print(self.saved_keys_down)
+
+
 
     def getAddSoundButton(self):
         canvas = tk.Canvas(self.root, width=1200, height=600)
         canvas.pack()
 
-        update_keys_down = tk.Button(canvas, text='Update Keys Down', command=self.updateKeysDown)
-        # update_keys_down.pack(side=tk.TOP)
+        update_keys_down = tk.Button(canvas, text='Save Keys Down', command=self.updateKeysDown)
+        saved_keys_down_display = tk.Label(canvas, textvariable=self.saved_keys_down_str_var)
+        update_keys_down.pack(side=tk.TOP)
+        saved_keys_down_display.pack(side=tk.TOP)
 
         new_sound_path_textbox = tk.Entry(canvas, text="New Sound Path")
         add_new_sound_button = tk.Button(canvas, text="Add Sound")

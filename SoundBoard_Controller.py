@@ -52,7 +52,7 @@ class SoundBoardController:
     def handleKeyEvent(self, key_event):
         self.keyPressManager.processKeyEvent(key_event) # update data inside of keyPressManager about what key was pressed
         if self.keyPressManager.key_state_changed and not keyPressManager.last_event_was_key_release:
-            self.recorder.processKeysDown(self.keyPressManager.getKeysDown(), soundCollection) # recorder class will start or stop recording if the recording hotkeys were pressed
+            self.recorder.processKeysDown(self.keyPressManager.getKeysDown()) # recorder class will start or stop recording if the recording hotkeys were pressed
             self._updateSoundboardConfiguration() # use the now updated data stored inside of keyPressManager to update the configuration settings of the soundboard
             possible_new_sound_entry = self.soundCollection.getBestSoundEntryMatchOrNull(self.keyPressManager.getKeysDown())
             self.addSoundToQueueAndPlayIt(possible_new_sound_entry)
@@ -111,6 +111,12 @@ class SoundBoardController:
             self.soundCollection.stopAllSounds()
         elif self.keyPressManager.endingKeysEqual(["left", "right"]): # left + right -> reset pitch of all sounds
             self.soundCollection.resetAllPitches()
+        elif keyPressManager.endingKeysEqual(["tab", "left"]):
+            self.recorder.selectPrevRecording()
+        elif keyPressManager.endingKeysEqual(["tab", "right"]):
+            self.recorder.selectNextRecording()
+        elif keyPressManager.endingKeysEqual(["tab", "delete"]):
+            self.recorder.deleteCurrRecording()
         elif self.keyPressManager.endingKeysEqual(["menu", "left"]): # alt + left -> shift down pitch of currently playing sound
             self.soundCollection.shiftAllPitches(-PITCH_SHIFT_AMOUNT)
         elif self.keyPressManager.endingKeysEqual(["menu", "right"]): # alt + right (insert trump joke here xd) -> shift down pitch of currently playing sound
