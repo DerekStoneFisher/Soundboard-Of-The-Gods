@@ -201,7 +201,7 @@ if __name__ == "__main__":
         print list(key_bind), os.path.basename(soundCollection.key_bind_map[key_bind].path_to_sound)
 
     keyPressManager = KeyPressManager()
-    audioRecorder = AudioRecorder()
+    audioRecorder = AudioRecorder(soundCollection)
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)
     soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController)
 

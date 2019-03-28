@@ -184,6 +184,8 @@ NAME_OVERRIDE_LIST = {
     "rwin":"win"
 }
 
+REVERSED_NAME_OVERRIDE_LIST = {v: k for k, v in NAME_OVERRIDE_LIST.iteritems()}
+
 JAVA_KEY_CODES = {
     10:"Enter",
     8:"Backspace",
@@ -324,8 +326,6 @@ JAVA_KEY_CODES = {
     65368:"Begin",
     0:"Undefined"
 }
-
-
 
 name_to_code_map = {
     "numpad 8":104,
@@ -569,25 +569,54 @@ JAVA_KEY_NAMES = {
     "undefined":0
 }
 
+java_to_regular = {
+    44: 188,  # comma -> Snapshot
+    155: 45,  # minus -> insert
+    45: 189,  # insert -> minus
+    92: 220,  # back slash -> Rwin
+    91: 219,  # open bracket -> Lwin
+    93: 221,  # ??? -> close bracket
+    61: 187,  # equals ->
+    46: 190,  # period -> Delete
+    59: 186,  # semicolon ->
+    127: 46,  # delete -> F16
+    10: 13,  # enter ->
+    129:191 # F16 -> /
+}
+
+regular_to_java = {v: k for k, v in java_to_regular.iteritems()}
 
 
 def convertJavaKeyIDToRegularKeyID(java_key_id):
-    java_to_regular = {
-        44: 188,  # comma -> Snapshot
-        155: 45,  # minus -> insert
-        45: 189,  # insert -> minus
-        92: 220,  # back slash -> Rwin
-        91: 219,  # open bracket -> Lwin
-        93: 221,  # ??? -> close bracket
-        61: 187,  # equals ->
-        46: 190,  # period -> Delete
-        59: 186,  # semicolon ->
-        127: 46,  # delete -> F16
-        10: 13,  # enter ->
-        129:191 # F16 -> /
-    }
-
     if java_key_id in java_to_regular:
         return java_to_regular[java_key_id]
     else:
         return java_key_id
+
+
+def getKeyNames(java_key_id_list):
+    names = []
+    for java_id in java_key_id_list:
+        regular_id = convertJavaKeyIDToRegularKeyID(java_id)
+        if regular_id not in KEY_ID_TO_NAME_MAP:
+            print "key id not recognized: id={}".format(regular_id)
+            return None
+        else:
+            names.append(KEY_ID_TO_NAME_MAP[regular_id].lower())
+    return names
+
+def getJavaKeyIdsFromKeyNames(key_name_list):
+    java_key_ids = []
+    for key_name in key_name_list:
+        # undo the name override operation
+        if key_name in REVERSED_NAME_OVERRIDE_LIST:
+            key_name = REVERSED_NAME_OVERRIDE_LIST[key_name]
+
+        # map it from name to id
+        if key_name in JAVA_KEY_NAMES:
+            java_id = JAVA_KEY_NAMES[key_name]
+            java_key_ids.append(java_id)
+        else:
+            print ('failed to get java key ids from key names\tkey_name_list={}'.format(key_name_list))
+            return None
+    return java_key_ids
