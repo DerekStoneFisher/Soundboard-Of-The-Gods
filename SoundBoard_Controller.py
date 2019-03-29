@@ -2,7 +2,8 @@ import os
 from SoundBoard_GUI import SoundBoardGUI
 import pyHook
 from Recorder import AudioRecorder
-from Json_Editor import runJsonUpdateRoutine
+from Json_Editor import JsonEditor
+from Sound_Library import SoundLibrary
 
 from Sound import SoundEntry, SoundCollection
 from KeyPress import KeyPressManager
@@ -15,6 +16,7 @@ SHIFT_SECONDS = .1 # by how many seconds will the up and down arrows move the ma
 SOUNDBOARD_JSON_FILE = "Board1.json"
 SOUNDBOARD_JSON_FILE_EDITED = "Board1_edited.json"
 SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH = "C:/Users/Admin/Desktop/Soundboard"
+SOUND_LIBRARY_JSON = "Board2.json"
 
 
 class SoundBoardController:
@@ -52,7 +54,7 @@ class SoundBoardController:
     def handleKeyEvent(self, key_event):
         self.keyPressManager.processKeyEvent(key_event) # update data inside of keyPressManager about what key was pressed
         if self.keyPressManager.key_state_changed and not keyPressManager.last_event_was_key_release:
-            self.recorder.processKeysDown(self.keyPressManager.getKeysDown(), soundCollection) # recorder class will start or stop recording if the recording hotkeys were pressed
+            self.recorder.processKeysDown(self.keyPressManager.getKeysDown()) # recorder class will start or stop recording if the recording hotkeys were pressed
             self._updateSoundboardConfiguration() # use the now updated data stored inside of keyPressManager to update the configuration settings of the soundboard
             possible_new_sound_entry = self.soundCollection.getBestSoundEntryMatchOrNull(self.keyPressManager.getKeysDown())
             self.addSoundToQueueAndPlayIt(possible_new_sound_entry)
@@ -118,6 +120,12 @@ class SoundBoardController:
             self.soundCollection.stopAllSounds()
         elif self.keyPressManager.endingKeysEqual(["left", "right"]): # left + right -> reset pitch of all sounds
             self.soundCollection.resetAllPitches()
+        elif keyPressManager.endingKeysEqual(["tab", "left"]):
+            self.recorder.selectPrevRecording()
+        elif keyPressManager.endingKeysEqual(["tab", "right"]):
+            self.recorder.selectNextRecording()
+        elif keyPressManager.endingKeysEqual(["tab", "delete"]):
+            self.recorder.deleteCurrRecording()
         elif self.keyPressManager.endingKeysEqual(["menu", "left"]): # alt + left -> shift down pitch of currently playing sound
             self.soundCollection.shiftAllPitches(-PITCH_SHIFT_AMOUNT)
         elif self.keyPressManager.endingKeysEqual(["menu", "right"]): # alt + right (insert trump joke here xd) -> shift down pitch of currently playing sound
@@ -196,7 +204,8 @@ class SoundBoardController:
 
 
 if __name__ == "__main__":
-    runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
+    jsonEditor = JsonEditor()
+    jsonEditor.runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
 
     soundCollection = SoundCollection()
     soundCollection.ingestSoundboardJsonConfigFile(SOUNDBOARD_JSON_FILE_EDITED)
@@ -204,9 +213,10 @@ if __name__ == "__main__":
         print list(key_bind), os.path.basename(soundCollection.key_bind_map[key_bind].path_to_sound)
 
     keyPressManager = KeyPressManager()
-    audioRecorder = AudioRecorder()
+    soundLibrary = SoundLibrary(SOUND_LIBRARY_JSON)
+    audioRecorder = AudioRecorder(soundCollection)
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)
-    soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController)
+    soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController, soundLibrary)
 
     soundBoardGUI.root.after(1000, soundboardController.runpyHookThread)
     thread.start_new_thread(audioRecorder.listen, tuple())
