@@ -92,6 +92,9 @@ class AudioRecorder:
             del self.previous_recordings[self.curr_index]
             self.selectPrevRecording()
 
+    def getCurrentRecording(self):
+        return self.previous_recordings[self.curr_index]
+
     def getLastRecordingContents(self):
         return self.previous_recordings[-1]
 

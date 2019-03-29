@@ -22,7 +22,7 @@ class SoundLibrary:
 
     def save(self):
         with open(self.json_file_path, 'w') as json_file:
-            json.dump(self.config_object, json_file)
+            json_file.write(json.dumps(self.config_object, json_file).replace('{"file"', '\n\t{"file"'))
 
     def refresh(self):
         with open(self.json_file_path, 'r') as json_file:

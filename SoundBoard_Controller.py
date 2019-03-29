@@ -2,7 +2,8 @@ import os
 from SoundBoard_GUI import SoundBoardGUI
 import pyHook
 from Recorder import AudioRecorder
-from Json_Editor import runJsonUpdateRoutine
+from Json_Editor import JsonEditor
+from Sound_Library import SoundLibrary
 
 from Sound import SoundEntry, SoundCollection
 from KeyPress import KeyPressManager
@@ -15,6 +16,7 @@ SHIFT_SECONDS = .1 # by how many seconds will the up and down arrows move the ma
 SOUNDBOARD_JSON_FILE = "Board1.json"
 SOUNDBOARD_JSON_FILE_EDITED = "Board1_edited.json"
 SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH = "C:/Users/Admin/Desktop/Soundboard"
+SOUND_LIBRARY_JSON = "Board2.json"
 
 
 class SoundBoardController:
@@ -199,7 +201,8 @@ class SoundBoardController:
 
 
 if __name__ == "__main__":
-    runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
+    jsonEditor = JsonEditor()
+    jsonEditor.runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
 
     soundCollection = SoundCollection()
     soundCollection.ingestSoundboardJsonConfigFile(SOUNDBOARD_JSON_FILE_EDITED)
@@ -207,9 +210,10 @@ if __name__ == "__main__":
         print list(key_bind), os.path.basename(soundCollection.key_bind_map[key_bind].path_to_sound)
 
     keyPressManager = KeyPressManager()
+    soundLibrary = SoundLibrary(SOUND_LIBRARY_JSON)
     audioRecorder = AudioRecorder(soundCollection)
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)
-    soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController)
+    soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController, soundLibrary)
 
     soundBoardGUI.root.after(1000, soundboardController.runpyHookThread)
     thread.start_new_thread(audioRecorder.listen, tuple())
