@@ -91,7 +91,14 @@ class SoundBoardController:
 
 
     def _updateSoundboardConfiguration(self):
-        if self.keyPressManager.keysAreContainedInKeysDown(["1", "4"]):  # we use more lenient matching for this one
+        if keyPressManager.endingKeysEqual(["pause"]):
+            self.pause_soundboard = not self.pause_soundboard
+            self.soundCollection.stopAllSounds()
+        elif self.pause_soundboard: # break early if soundboard is paused
+            return
+
+
+        elif self.keyPressManager.keysAreContainedInKeysDown(["1", "4"]):  # we use more lenient matching for this one
             thread.start_new_thread(self.getCurrentSoundEntry().jumpToMarkedFrameIndex, tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
         if self.keyPressManager.keysAreContainedInKeysDown(["tab", "4"]):  # we use more lenient matching for this one
             thread.start_new_thread(self.getCurrentSoundEntry().jumpToSecondaryMarkedFrameIndex, tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
@@ -120,10 +127,6 @@ class SoundBoardController:
         elif self.keyPressManager.endingKeysEqual(["right"]): # right (without alt) -> shift up pitch of all sounds
             self.getCurrentSoundEntry().shiftPitch(PITCH_SHIFT_AMOUNT)
 
-        # non-sound specific configuration key binds
-        elif keyPressManager.endingKeysEqual(["pause"]):
-            self.pause_soundboard = not self.pause_soundboard
-            self.soundCollection.stopAllSounds()
         # elif self.keyPressManager.endingKeysEqual(["1","2","3"]):
         #     self.hold_to_play = not self.hold_to_play
 
@@ -134,7 +137,7 @@ class SoundBoardController:
             self.getCurrentSoundEntry().activateSlowMotion()
         elif self.keyPressManager.endingKeysEqual(["tab", "up"]):
             self.getCurrentSoundEntry().activateSpeedUpMotion()
-        elif self.keyPressManager.endingKeysEqual(["tab","oem_5"] or self.keyPressManager.endingKeysEqual(["oem_5", "delete"])): # tab \
+        elif self.keyPressManager.endingKeysEqual(["tab","oem_5"]) or self.keyPressManager.endingKeysEqual(["tab", "2"]): # tab \
             self.getCurrentSoundEntry().activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "oem_4"]): # tab [
             self.getCurrentSoundEntry().oscillate_shift += .01

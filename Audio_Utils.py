@@ -18,14 +18,17 @@ SILENCE_THRESHOLD = 500
 def writeFramesToFile(frames, filename, normalize=True):
     if os.path.exists(filename) and "Extended_Audio" not in filename:
         copyfileToBackupFolder(filename)
-        os.remove(filename)
-    with wave.open(filename, 'wb') as wf:
+        # os.remove(filename)
+    wf = wave.open(filename, 'wb')
+    try:
         wf.setnchannels(CONST.CHANNELS)
         wf.setsampwidth(CONST.SAMPLE_WIDTH)
         wf.setframerate(CONST.FRAME_RATE)
         if normalize:
             frames = getNormalizedAudioFrames(frames, DEFAULT_DBFS)
         wf.writeframes(b''.join(frames))
+    finally:
+        wf.close()
 
 
 
@@ -44,7 +47,6 @@ def getFramesFromFile(filename):
             raise ValueError("error: read from from file because file does not exist\tfilename=" + str(filename))
     except:
         print "failed to getFramesFromfile for filename"+filename
-        raise
 
 
 def getReversedFrames(frames):

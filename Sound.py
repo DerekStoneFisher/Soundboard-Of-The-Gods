@@ -282,7 +282,7 @@ class SoundEntry:
                 self.frame_index = self.index_before_jump + (self.frame_index - self.marked_frame_index)
                 self.undo_marked_frame_jump = False
 
-            current_frame = self.frames[self.frame_index]
+            current_frame = self.frames[min(self.frame_index, len(self.frames)-1)]
 
             if self.half_oscillation_cycles_remaining > 0:
                 if self.oscillation_frame_counter % self.frames_between_oscillate_shifts == 0:
@@ -318,9 +318,9 @@ class SoundEntry:
 
             if self.pitch_modifier != 0:
                 current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
-                if self.frame_index % 100 == 0:
-                    print "current pitch is ", self.pitch_modifier
-                    print "oscillation shift is", self.oscillate_shift, "frames between oscillation shifts", self.frames_between_oscillate_shifts
+                # if self.frame_index % 100 == 0:
+                    # print "current pitch is ", self.pitch_modifier
+                    # print "oscillation shift is", self.oscillate_shift, "frames between oscillation shifts", self.frames_between_oscillate_shifts
 
 
             self._writeFrameToStreams(current_frame)
