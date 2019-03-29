@@ -25,6 +25,7 @@ class SoundBoardGUI:
         self.recorder = audioRecorder # needed to get the recordings so we can use them to create new soundEntries
         self.soundBoardController = soundBoardController # so we can call the addSoundToQueueAndPlayIt() function
         self.soundLibrary = soundLibrary
+        self.saved_keys_down = []
 
         self.root = tk.Tk()
         self.configWindow()
@@ -37,7 +38,6 @@ class SoundBoardGUI:
         canvas1.pack(fill='both', expand=True, side=tk.TOP)
         canvas2.pack(side=tk.TOP)
 
-        self.saved_keys_down = []
 
 
 
