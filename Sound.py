@@ -111,9 +111,10 @@ class SoundCollection:
             for soundboard_entry in soundboard_entries:
                 try:
                     path_to_sound_file = soundboard_entry["file"]
-                    activation_key_codes = soundboard_entry["activationKeysNumbers"]
                     if os.path.exists(path_to_sound_file):
-                        activation_key_names = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_key_codes]
+                        # activation_key_codes = soundboard_entry["activationKeysNumbers"]
+                        # activation_key_names = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_key_codes]
+                        activation_key_names = soundboard_entry["activationKeyNames"]
                         soundEntry_to_add = SoundEntry(path_to_sound_file, activation_keys=frozenset(activation_key_names))
                         self.addSoundEntry(soundEntry_to_add)
                         self.sound_entry_list_from_json.append(soundEntry_to_add)
@@ -221,8 +222,8 @@ class SoundEntry:
         self.speed_up_started = False # signal to start speeding up  for "speed_up_to_normal" frames left
         self.speed_up_frames_left = 0 # number of frames to continue speeding up for
 
-        self.oscillate_shift = .01 # cycles between negative and positive during oscillation
-        self.frames_between_oscillate_shifts = 60
+        self.oscillate_shift = .03 # cycles between negative and positive during oscillation
+        self.frames_between_oscillate_shifts = 10
         self.half_oscillation_cycles_remaining = 0 # how many times the pitch will shift up and down (going up and then down is 2 half oscillation cycles)
         self.oscillation_frame_counter = 0 # used with modulo to keep track of when to switch oscillate_shift from positive and negative
 
@@ -285,14 +286,15 @@ class SoundEntry:
             current_frame = self.frames[min(self.frame_index, len(self.frames)-1)]
 
             if self.half_oscillation_cycles_remaining > 0:
-                if self.oscillation_frame_counter % self.frames_between_oscillate_shifts == 0:
+                # print "pitch:", self.pitch_modifier, "oscillation_frame_counter: ", self.oscillation_frame_counter, "half_oscillation_cycles_remaining", self.half_oscillation_cycles_remaining
+                if self.oscillation_frame_counter != 0 and self.oscillation_frame_counter % self.frames_between_oscillate_shifts == 0:
                     self.oscillate_shift = -self.oscillate_shift # switch between negative and positive
                     self.half_oscillation_cycles_remaining -= 1
                 self.pitch_modifier += self.oscillate_shift
                 self.oscillation_frame_counter += 1
 
                 if self.half_oscillation_cycles_remaining == 0: # for the very last iteration
-                    self.pitch_modifier += abs(self.oscillate_shift) # shift pitch up one extra time, otherwise, we end up 1 oscillate_shift lower than where we started
+                    self.pitch_modifier -= abs(self.oscillate_shift) # shift pitch up one extra time, otherwise, we end up 1 oscillate_shift lower than where we started
 
 
             # do slow motion stuff here
@@ -319,8 +321,8 @@ class SoundEntry:
             if self.pitch_modifier != 0:
                 current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
                 # if self.frame_index % 100 == 0:
-                    # print "current pitch is ", self.pitch_modifier
-                    # print "oscillation shift is", self.oscillate_shift, "frames between oscillation shifts", self.frames_between_oscillate_shifts
+                #     print "current pitch is ", self.pitch_modifier
+                #     print "oscillation shift is", self.oscillate_shift, "frames between oscillation shifts", self.frames_between_oscillate_shifts, "half_oscillation_cycles_remaining", self.half_oscillation_cycles_remaining
 
 
             self._writeFrameToStreams(current_frame)
@@ -417,9 +419,13 @@ class SoundEntry:
         self.speed_up_started = True
 
     def activateOscillate(self):
+        print " - oscillate amount:", self.oscillate_shift
+        print " - oscillate peak:", self.frames_between_oscillate_shifts
+        print " - cycles:", ((240 // self.frames_between_oscillate_shifts) // 2) * 2
         if self.half_oscillation_cycles_remaining == 0: #  trying to oscillate while we are already doing so is a bad idea
+
             self.oscillate_shift = abs(self.oscillate_shift)
-            self.half_oscillation_cycles_remaining = 5
+            self.half_oscillation_cycles_remaining = ((240 // self.frames_between_oscillate_shifts) // 2) * 2
             self.oscillation_frame_counter = 0
 
     def getSoundName(self):

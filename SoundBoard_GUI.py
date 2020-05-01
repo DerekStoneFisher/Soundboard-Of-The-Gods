@@ -221,7 +221,7 @@ class SoundBoardGUI:
                             background = "green"
                         elif 'rap' in folders:
                             background = "orange"
-                        elif seconds > 3:
+                        elif seconds > 6:
                             background = "red"
 
                         button = tk.Button(parent, text=os.path.basename(filename), width=WIDTH, anchor='w',

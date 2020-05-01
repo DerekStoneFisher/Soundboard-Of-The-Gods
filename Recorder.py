@@ -71,8 +71,8 @@ class AudioRecorder:
         print "recorded",  '%.2f' % Audio_Utils.framesToSeconds(self.record_end-self.record_start), "seconds of audio"
         self.record_start = None
         self.record_end = None
-        if len(self.previous_recordings) >= 5:
-            del(self.previous_recordings[0])
+        # if len(self.previous_recordings) >= 15:
+        #     del(self.previous_recordings[0])
         self.previous_recordings.append(normalized_frames_to_save)
 
     def selectPrevRecording(self):

@@ -148,9 +148,17 @@ class SoundBoardController:
         elif self.keyPressManager.endingKeysEqual(["tab","oem_5"]) or self.keyPressManager.endingKeysEqual(["tab", "2"]): # tab \
             self.getCurrentSoundEntry().activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "oem_4"]): # tab [
-            self.getCurrentSoundEntry().oscillate_shift += .01
+            self.getCurrentSoundEntry().frames_between_oscillate_shifts -= 1
+            print "oscillate peak:", self.getCurrentSoundEntry().frames_between_oscillate_shifts
         elif self.keyPressManager.endingKeysEqual(["tab", "oem_6"]): # tab ]
+            self.getCurrentSoundEntry().frames_between_oscillate_shifts += 1
+            print "oscillate peak:", self.getCurrentSoundEntry().frames_between_oscillate_shifts
+        elif self.keyPressManager.endingKeysEqual(["tab", "o"]):
             self.getCurrentSoundEntry().oscillate_shift -= .01
+            print "oscillate amount:", self.getCurrentSoundEntry().oscillate_shift
+        elif self.keyPressManager.endingKeysEqual(["tab", "p"]):
+            self.getCurrentSoundEntry().oscillate_shift += .01
+            print "oscillate amount:", self.getCurrentSoundEntry().oscillate_shift
         elif self.keyPressManager.endingKeysEqual(["up"]):
             self.getCurrentSoundEntry().moveMarkedFrameIndex(SHIFT_SECONDS)
         elif self.keyPressManager.endingKeysEqual(["down"]):

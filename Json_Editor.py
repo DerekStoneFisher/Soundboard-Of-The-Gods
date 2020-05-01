@@ -6,6 +6,8 @@ SOUNDBOARD_BASE_DIRECTORY = "D:/DerekProjects/Python_Script_Stuff/Audio_Recorder
 SOUNDBOARD_JSON_FILE = "D:/DerekProjects/Python_Script_Stuff/Audio_Recorder/sounds/pretend soundboard folder/pretend soundboard file.json"
 SOUNDBOARD_JSON_FILE_EDITED = "D:/DerekProjects/Python_Script_Stuff/Audio_Recorder/sounds/pretend soundboard folder/pretend soundboard file_edited.json"
 BOARD2 = "Board2.json"
+from Audio_Proj_Const import KEY_ID_TO_NAME_MAP, convertJavaKeyIDToRegularKeyID
+
 
 class JsonEditor:
     def __init__(self):
@@ -76,6 +78,7 @@ class JsonEditor:
             inner_dict = OrderedDict()
             inner_dict["file"] = sound_path.replace("/", "\\")
             inner_dict["activationKeysNumbers"] = activation_keys
+            inner_dict["activationKeyNames"] = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_keys]
             base_dict["soundboardEntries"].append(inner_dict)
 
         with open(new_config_file_path, "w") as f:
