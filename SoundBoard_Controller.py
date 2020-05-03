@@ -4,6 +4,7 @@ import pyHook
 from Recorder import AudioRecorder
 from Json_Editor import JsonEditor
 from Sound_Library import SoundLibrary
+from Pitch_Controller import PitchController
 
 from Sound import SoundEntry, SoundCollection
 from KeyPress import KeyPressManager
@@ -190,18 +191,35 @@ class SoundBoardController:
             self.swapCurrentAndPreviousSoundEntry()
             self.getCurrentSoundEntry().reset_frame_index_on_play = False
             self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
-        elif self.keyPressManager.endingKeysEqual(["tab", "6"]):
-            self.getCurrentSoundEntry().matchBpmWithAnotherSound(self.getPreviousSoundEntry())
-        elif self.keyPressManager.endingKeysEqual(["tab", "7"]):
-            self.getCurrentSoundEntry().autoDetectBpm()
+        # elif self.keyPressManager.endingKeysEqual(["tab", "6"]):
+        #     self.getCurrentSoundEntry().matchBpmWithAnotherSound(self.getPreviousSoundEntry())
+        # elif self.keyPressManager.endingKeysEqual(["tab", "7"]):
+        #     self.getCurrentSoundEntry().autoDetectBpm()
+        # elif self.keyPressManager.endingKeysEqual(["tab", "q"]):
+        #     self.getCurrentSoundEntry().bpm_obj.update()
+        #     print self.getCurrentSoundEntry().bpm_obj.avg_bpm
+        # elif self.keyPressManager.endingKeysEqual(["tab", "w"]):
+        #     self.getCurrentSoundEntry().bpm = self.getCurrentSoundEntry().bpm_obj.avg_bpm
+        # elif self.keyPressManager.endingKeysEqual(["tab", "e"]):
+        #     self.getCurrentSoundEntry().bpm_obj.restart()
+        elif self.keyPressManager.endingKeysEqual(["tab", "r"]):
+            PitchController.oscillateSound(self.getCurrentSoundEntry())
         elif self.keyPressManager.endingKeysEqual(["tab", "q"]):
-            self.getCurrentSoundEntry().bpm_obj.update()
-            print self.getCurrentSoundEntry().bpm_obj.avg_bpm
+            PitchController.oscillate_amplitude  *= .75
+            print "oscillate_amplitude", PitchController.oscillate_amplitude
         elif self.keyPressManager.endingKeysEqual(["tab", "w"]):
-            self.getCurrentSoundEntry().bpm = self.getCurrentSoundEntry().bpm_obj.avg_bpm
+            PitchController.oscillate_amplitude *= 1.25
+            print "oscillate_amplitude", PitchController.oscillate_amplitude
+        elif self.keyPressManager.endingKeysEqual(["tab", "a"]):
+            PitchController.oscillate_pitch_shift_per_second *= .75
+            print "oscillate_pitch_shift_per_second", PitchController.oscillate_pitch_shift_per_second
+        elif self.keyPressManager.endingKeysEqual(["tab", "s"]):
+            PitchController.oscillate_pitch_shift_per_second *= 1.25
+            print "oscillate_pitch_shift_per_second", PitchController.oscillate_pitch_shift_per_second
         elif self.keyPressManager.endingKeysEqual(["tab", "e"]):
-            self.getCurrentSoundEntry().bpm_obj.restart()
-
+            PitchController.gradualPitchShiftSound(self.getCurrentSoundEntry(), 1)
+        elif self.keyPressManager.endingKeysEqual(["tab", "d"]):
+            PitchController.gradualPitchShiftSound(self.getCurrentSoundEntry(), -1)
 
     def updateQueueWithNewSoundEntry(self, sound_entry_to_add):
         if self.getCurrentSoundEntry() != sound_entry_to_add and sound_entry_to_add is not None:

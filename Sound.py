@@ -1,4 +1,5 @@
 import Audio_Utils
+import threading
 import pyaudio
 import json
 
@@ -222,8 +223,8 @@ class SoundEntry:
         self.speed_up_started = False # signal to start speeding up  for "speed_up_to_normal" frames left
         self.speed_up_frames_left = 0 # number of frames to continue speeding up for
 
-        self.oscillate_shift = .03 # cycles between negative and positive during oscillation
-        self.frames_between_oscillate_shifts = 10
+        self.oscillate_shift = .01 # .03 # cycles between negative and positive during oscillation
+        self.frames_between_oscillate_shifts = 60 #10
         self.half_oscillation_cycles_remaining = 0 # how many times the pitch will shift up and down (going up and then down is 2 half oscillation cycles)
         self.oscillation_frame_counter = 0 # used with modulo to keep track of when to switch oscillate_shift from positive and negative
 
@@ -408,6 +409,7 @@ class SoundEntry:
                 self.play()
 
     def shiftPitch(self, amount):
+        print "pitch", self.pitch_modifier, " -> ", self.pitch_modifier+amount
         self.pitch_modifier += amount
 
     def activateSlowMotion(self):
@@ -465,3 +467,6 @@ class SoundEntry:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.path_to_sound)

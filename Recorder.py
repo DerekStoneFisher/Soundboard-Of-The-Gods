@@ -68,7 +68,7 @@ class AudioRecorder:
         frames_to_save = list(self.frames[self.record_start:self.record_end])
         normalized_frames_to_save = Audio_Utils.getNormalizedAudioFrames(frames_to_save, Audio_Utils.DEFAULT_DBFS)
         normalized_frames_to_save = Audio_Utils.getFramesWithoutStartingSilence(normalized_frames_to_save)
-        print "recorded",  '%.2f' % Audio_Utils.framesToSeconds(self.record_end-self.record_start), "seconds of audio"
+        print "recorded",  '%.2f' % Audio_Utils.framesToSeconds(len(frames_to_save)), "seconds of audio"
         self.record_start = None
         self.record_end = None
         # if len(self.previous_recordings) >= 15:
