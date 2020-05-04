@@ -4,7 +4,6 @@ import pyaudio
 import json
 
 import BPM_Utils
-from Audio_Proj_Const import KEY_ID_TO_NAME_MAP, convertJavaKeyIDToRegularKeyID
 import os
 import time, thread
 import array
@@ -113,8 +112,6 @@ class SoundCollection:
                 try:
                     path_to_sound_file = soundboard_entry["file"]
                     if os.path.exists(path_to_sound_file):
-                        # activation_key_codes = soundboard_entry["activationKeysNumbers"]
-                        # activation_key_names = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_key_codes]
                         activation_key_names = soundboard_entry["activationKeyNames"]
                         soundEntry_to_add = SoundEntry(path_to_sound_file, activation_keys=frozenset(activation_key_names))
                         self.addSoundEntry(soundEntry_to_add)

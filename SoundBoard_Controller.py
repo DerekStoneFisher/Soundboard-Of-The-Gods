@@ -231,8 +231,7 @@ class SoundBoardController:
 
 if __name__ == "__main__":
     jsonEditor = JsonEditor()
-    jsonEditor.runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
-    jsonEditor.createKeyNameJsonFromEditedJson(SOUNDBOARD_JSON_FILE_EDITED, SOUND_LIBRARY_JSON)
+    jsonEditor.runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
 
     soundCollection = SoundCollection()
     soundCollection.ingestSoundboardJsonConfigFile(SOUNDBOARD_JSON_FILE_EDITED)

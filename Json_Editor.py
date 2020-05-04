@@ -1,15 +1,23 @@
 import json, os
 from collections import OrderedDict
-from Audio_Proj_Const import convertJavaKeyIDToRegularKeyID, KEY_ID_TO_NAME_MAP
-# SOUNDBOARD_BASE_DIRECTORY = "C:/Users/Admin/Desktop/Soundboard"
-SOUNDBOARD_BASE_DIRECTORY = "D:/DerekProjects/Python_Script_Stuff/Audio_Recorder/sounds/pretend soundboard folder"
-SOUNDBOARD_JSON_FILE = "D:/DerekProjects/Python_Script_Stuff/Audio_Recorder/sounds/pretend soundboard folder/pretend soundboard file.json"
-SOUNDBOARD_JSON_FILE_EDITED = "D:/DerekProjects/Python_Script_Stuff/Audio_Recorder/sounds/pretend soundboard folder/pretend soundboard file_edited.json"
-BOARD2 = "Board2.json"
-from Audio_Proj_Const import KEY_ID_TO_NAME_MAP, convertJavaKeyIDToRegularKeyID
-
+from Audio_Proj_Const import KEY_NAMES, NAME_OVERRIDE_LIST
 
 class JsonEditor:
+    '''
+    Updates the soundboard config json by updating the file paths of any moved sound files
+
+    This module acts like a script which follows the following steps
+    1. Traverses the base directory where all soundboard sounds are stored and extracts the names and paths of all sounds found within.
+    2. Extracts the names, paths, and activation keys of each sound from the soundboard JSON config file.
+       (Ignores sounds with invalid activation key names. key names are replaced with their version from NAME_OVERRIDE_LIST).
+    3. Iterate through each sound found in the JSON config file, applying one of the three changes
+        - MOVED: The file path for a sound specified in the JSON does not exist, but there exists as corresponding
+                 file path for that same sound found in the soundboard sound directory, so the path is updated accordingly
+        - NOT-FOUND: The file for a specified sound in the JSON does not exist, and that sound name was not found
+                 in the sound directory either, so it won't be passed into the soundboard on startup
+        - UNCHANGED: the file for a specified sound in the JSON exists, so no issues.
+
+    '''
     def __init__(self):
         self.sound_name_to_folder_sound_path_map = OrderedDict() # { name -> path } for sounds in the soundboard folder
         self.sound_name_to_json_sound_path_map = OrderedDict() # { name -> path } for sounds in the soundboard json file
@@ -19,7 +27,7 @@ class JsonEditor:
         self.unassigned_sound_names_to_paths_map = OrderedDict()
 
 
-    def runJsonUpdateRoutine(self, json_config_file_path=SOUNDBOARD_JSON_FILE, json_config_new_file_path=SOUNDBOARD_JSON_FILE_EDITED, soundboard_folder_path=SOUNDBOARD_BASE_DIRECTORY):
+    def runJsonUpdateRoutine(self, json_config_file_path, json_config_new_file_path, soundboard_folder_path):
         self._populateSoundMapFromSoundboardFolder(soundboard_folder_path)
         self._populateSoundMapFromJson(json_config_file_path)
         self._updateJsonSoundPathMapWithActualSoundPathMap()
@@ -31,7 +39,7 @@ class JsonEditor:
         for directory_path, directory_name, filenames in os.walk(soundboard_base_directory):
             for filename in filenames:
                 if filename.endswith(".wav"):
-                    sound_path = (directory_path + "/" + filename).replace("\\", "/")
+                    sound_path = os.path.join(directory_path, filename)
                     if filename in self.sound_name_to_folder_sound_path_map:
                         print "FILE-DUPE\toverwriting", filename, "sound_path of\t", self.sound_name_to_folder_sound_path_map[filename], "\twith\t", sound_path
                     self.sound_name_to_folder_sound_path_map[filename] = sound_path
@@ -44,14 +52,21 @@ class JsonEditor:
             soundboard_entries = config_object["soundboardEntries"]
             for soundboard_entry in soundboard_entries:
                 try:
-                    sound_path = soundboard_entry["file"].replace("\\", "/")
+                    sound_path = soundboard_entry["file"]
                     sound_name = os.path.basename(sound_path)
-                    activation_key_codes = soundboard_entry["activationKeysNumbers"]
+                    activation_key_names = soundboard_entry["activationKeyNames"]
 
                     if sound_name in self.sound_name_to_json_sound_path_map:
-                        print "JSON-DUPE\toverwriting", sound_name, "activation code", self.sound_name_to_activation_keys_map[sound_name], "with", activation_key_codes
+                        print "JSON-DUPE\toverwriting", sound_name, "activation name", self.sound_name_to_activation_keys_map[sound_name], "with", activation_key_names
+                    for i in range(len(activation_key_names)):
+                        key_name = activation_key_names[i]
+                        if key_name in NAME_OVERRIDE_LIST:
+                            activation_key_names[i] = NAME_OVERRIDE_LIST[activation_key_names[i]]
+                        if key_name not in KEY_NAMES and key_name not in NAME_OVERRIDE_LIST:
+                            print "key name", key_name, "not found in list of valid keys. Skipping sound with invalid activation keys", soundboard_entry["file"]
+                            raise Exception('')
                     self.sound_name_to_json_sound_path_map[sound_name] = sound_path
-                    self.sound_name_to_activation_keys_map[sound_name] = activation_key_codes
+                    self.sound_name_to_activation_keys_map[sound_name] = activation_key_names
                 except:
                     print "failed to ingest", soundboard_entry["file"]
 
@@ -76,9 +91,8 @@ class JsonEditor:
         for sound_name, sound_path in self.sound_name_to_json_sound_path_map.items():
             activation_keys = self.sound_name_to_activation_keys_map[sound_name]
             inner_dict = OrderedDict()
-            inner_dict["file"] = sound_path.replace("/", "\\")
-            inner_dict["activationKeysNumbers"] = activation_keys
-            inner_dict["activationKeyNames"] = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_keys]
+            inner_dict["file"] = sound_path
+            inner_dict["activationKeyNames"] = activation_keys
             base_dict["soundboardEntries"].append(inner_dict)
 
         with open(new_config_file_path, "w") as f:
@@ -88,38 +102,3 @@ class JsonEditor:
         for name, path in self.sound_name_to_folder_sound_path_map.items():
             if name not in self.sound_name_to_activation_keys_map:
                 self.unassigned_sound_names_to_paths_map[name] = path
-    
-    
-    def createKeyNameJsonFromEditedJson(self, edited_json_file_path=SOUNDBOARD_JSON_FILE_EDITED, new_json_file_path=BOARD2):
-        with open(edited_json_file_path, 'r') as json_file:
-            json_obj = json.load(json_file)
-    
-        new_json = dict()
-        new_json["soundboardEntries"] = []
-        for d in json_obj["soundboardEntries"]:
-            activation_key_numbers = d['activationKeysNumbers']
-            regular_key_numbers = [convertJavaKeyIDToRegularKeyID(key) for key in activation_key_numbers]
-    
-            skip = False
-            key_names = []
-            for regular_key_num in regular_key_numbers:
-                if regular_key_num in KEY_ID_TO_NAME_MAP:
-                    key_names.append(KEY_ID_TO_NAME_MAP[regular_key_num].lower())
-                else:
-                    print "invalid key num {} for sound {} found in json, not adding sound".format(regular_key_num, d['file'])
-                    skip = True
-    
-            if not skip:
-                new_d = OrderedDict()
-                new_d['file'] = d['file']
-                new_d['activationKeyNames'] = key_names
-                new_json["soundboardEntries"].append(new_d)
-    
-        with open(new_json_file_path, 'w') as output:
-            output.write(json.dumps(new_json, output).replace('{"file"', '\n\t{"file"').replace("\\\\", "/"))
-    
-
-if __name__ == "__main__":
-    json_editor = JsonEditor()
-    json_editor.runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_BASE_DIRECTORY)
-    json_editor.createKeyNameJsonFromEditedJson(SOUNDBOARD_JSON_FILE_EDITED, BOARD2)
