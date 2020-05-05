@@ -1,8 +1,7 @@
 import tkinter as tk
 import tkinter.font as tkFont
 import json, os
-from KeyPress import KeyPressManager
-
+from soundboard.keys.KeyPress import KeyPressManager
 
 
 FONT_SIZE = 9

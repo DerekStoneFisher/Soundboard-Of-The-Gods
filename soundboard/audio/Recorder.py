@@ -7,6 +7,7 @@ import shutil
 
 import Audio_Utils
 from Sound import SoundEntry
+from stream import StreamBuilder
 
 
 class AudioRecorder:
@@ -19,14 +20,7 @@ class AudioRecorder:
         self.soundCollection = soundCollection
 
     def listen(self):
-        stream = pyaudio.PyAudio().open(
-            format=pyaudio.paInt16,
-            channels=2,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024,
-            input_device_index=Audio_Utils.getIndexOfStereoMix()
-        )
+        stream = StreamBuilder().getInputStream(StreamBuilder.STEREO_MIX_INDEX)
 
         while True:
             read_result = stream.read(1024)

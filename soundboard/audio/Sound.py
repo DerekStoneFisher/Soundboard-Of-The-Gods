@@ -1,94 +1,12 @@
 from collections import OrderedDict
 import Audio_Utils
-import threading
 import pyaudio
-import json
-from Sound_Library import SoundLibrary
 import BPM_Utils
 import os
 import time, thread
-import array
-VIRTUAL_AUDIO_CABLE_AVAILABLE = Audio_Utils.getIndexOfVirtualAudioCable() is not None
-SPEAKERS_INDEX = Audio_Utils.getIndexOfSpeakers()
-VIRTUAL_AUDIO_CABLE_INDEX = Audio_Utils.getIndexOfVirtualAudioCable()
-STREAM_COUNT = 10
-p = pyaudio.PyAudio()
 
+from soundboard.audio.stream import SharedStreamManager
 
-class SharedStreamCollection:
-    def __init__(self):
-        self.shared_streams = [SharedStream() for i in range(0, STREAM_COUNT)]
-
-    def getUnusedStreamAndIndex(self):
-        '''
-        the SoundEntry that calls this function is responsible for saving the index of the stream and
-        calling releaseStreamAtIndex with that index when done with the stream
-        :return: SoundEntry, int
-        '''
-        for i, stream in enumerate(self.shared_streams):
-            if not stream.in_use:
-                stream.in_use = True
-                return stream, i
-
-        print "could not find a free stream, adding a new one and returning that one"
-        self.shared_streams.append(SharedStream())
-        return self.shared_streams[-1]
-
-    def releaseStreamAtIndex(self, index):
-        self.shared_streams[index].in_use = False
-
-
-
-class SharedStream:
-    '''
-    one soundEntry can play sounds to a SharedStream at a time
-    a sharedStream usually has 1 stream for the speaker and 1 stream for the virtual audio cable. These are stored in output_streams
-    a
-    '''
-    def __init__(self):
-        self.in_use = False
-        # self._speaker_stream = speaker_stream
-        # self._virtual_audio_cable_stream = virtual_audio_cable_stream
-        self.output_streams = [] # usually will have 1 stream for speaker, 1 stream for virtual audio cable
-        # self.sound_using_the_stream = None
-        self._initializeSpeakerAndVirtualStream()
-
-    #
-    # def inUse(self):
-    #     return self._in_use
-
-    def playFrame(self, frame):
-        for stream in self.output_streams:
-            stream.write(frame)
-
-
-    def _initializeSpeakerAndVirtualStream(self):
-        speaker_stream = p.open(
-            format=pyaudio.paInt16,
-            channels=2,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024,
-            output=True,
-            output_device_index=SPEAKERS_INDEX
-         )
-        self.output_streams.append(speaker_stream)
-
-        if VIRTUAL_AUDIO_CABLE_AVAILABLE:
-            virtual_speaker_stream = p.open(
-                format=pyaudio.paInt16,
-                channels=2,
-                rate=44100,
-                input=True,
-                frames_per_buffer=1024,
-                output=True,
-                output_device_index=VIRTUAL_AUDIO_CABLE_INDEX
-            )
-            self.output_streams.append(virtual_speaker_stream)
-
-
-
-SHARED_STREAM_COLLECTION = SharedStreamCollection()
 
 
 class SoundCollection:
@@ -241,7 +159,7 @@ class SoundEntry:
             raise ValueError("Error: cannot play sound self.frames == None. The sound file was most likely deleted. sound = " + self.path_to_sound)
 
         if self.current_sharedStream is None:
-            self.current_sharedStream, self.shared_steam_index = SHARED_STREAM_COLLECTION.getUnusedStreamAndIndex()
+            self.current_sharedStream, self.shared_steam_index = SharedStreamManager.getUnusedStreamAndIndex()
         if self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
 
@@ -320,7 +238,7 @@ class SoundEntry:
                 self.frame_index += 1
 
         self.is_playing = False
-        SHARED_STREAM_COLLECTION.releaseStreamAtIndex(self.shared_steam_index)
+        SharedStreamManager.releaseStreamAtIndex(self.shared_steam_index)
         self.current_sharedStream = None
 
     def _writeFrameToStreams(self, frame):

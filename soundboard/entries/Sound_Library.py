@@ -1,6 +1,6 @@
 import os, json
 from collections import OrderedDict
-from Key_Utils import keyNamesAreValid
+from soundboard.keys.Key_Utils import keyNamesAreValid
 
 class SoundLibrary:
     def __init__(self, soundboard_json_config_path, soundboard_sounds_base_directory):

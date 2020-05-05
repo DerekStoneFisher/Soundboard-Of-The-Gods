@@ -1,11 +1,9 @@
-import Audio_Utils
+from soundboard.audio.Sound import SoundEntry
 import tkinter as tk
 import tkinter.font as tkFont
 from functools import partial
+from soundboard.audio import Audio_Utils
 import os
-import Sound
-import thread
-import time
 
 SOUNDS_DIRECTORY = "C:/Users/Admin/Desktop/Soundboard/Other Music + Godly"
 ENTIRE_SOUNDBOARD_DIRECTORY = "C:/Users/Admin/Desktop/Soundboard"
@@ -89,7 +87,7 @@ class SoundBoardGUI:
 
     def makeSoundAndPlayIt(self, path_to_sound_entry):
         if path_to_sound_entry not in self.soundCollection.sound_entry_path_map:
-            sound_entry = Sound.SoundEntry(path_to_sound_entry)
+            sound_entry = SoundEntry(path_to_sound_entry)
             self.soundCollection.addSoundEntry(sound_entry)
         sound_entry = self.soundCollection.sound_entry_path_map[path_to_sound_entry]
         self.soundBoardController.addSoundToQueueAndPlayIt(sound_entry)
@@ -119,7 +117,7 @@ class SoundBoardGUI:
                     column = 0
                     row += 1
                 sound_path = os.path.join(SOUNDS_DIRECTORY, filename)
-                sound_entry = Sound.SoundEntry(sound_path)
+                sound_entry = SoundEntry(sound_path)
                 self.soundCollection.addSoundEntry(sound_entry)
 
                 background = "white"

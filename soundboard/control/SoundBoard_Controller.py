@@ -1,12 +1,12 @@
 import os
 from SoundBoard_GUI import SoundBoardGUI
 import pyHook
-from Recorder import AudioRecorder
-from Sound_Library import SoundLibrary
-from Pitch_Controller import PitchController
+from soundboard.audio.Recorder import AudioRecorder
+from soundboard.entries.Sound_Library import SoundLibrary
+from soundboard.audio.Pitch_Controller import PitchController
 
-from Sound import SoundEntry, SoundCollection
-from KeyPress import KeyPressManager
+from soundboard.audio.Sound import SoundEntry, SoundCollection
+from soundboard.keys.KeyPress import KeyPressManager
 import thread
 
 SOUND_QUEUE_MAX_SIZE = 5

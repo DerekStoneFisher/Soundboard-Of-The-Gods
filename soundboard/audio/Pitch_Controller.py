@@ -1,6 +1,5 @@
 import time, thread, threading
 from Sound import SoundEntry
-import Audio_Utils
 
 class PitchController:
     '''
