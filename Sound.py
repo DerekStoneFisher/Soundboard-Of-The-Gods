@@ -1,8 +1,9 @@
+from collections import OrderedDict
 import Audio_Utils
 import threading
 import pyaudio
 import json
-
+from Sound_Library import SoundLibrary
 import BPM_Utils
 import os
 import time, thread
@@ -91,35 +92,19 @@ SHARED_STREAM_COLLECTION = SharedStreamCollection()
 
 
 class SoundCollection:
-    def __init__(self, key_bind_map=None):
-        self.key_bind_map = key_bind_map
-        self.sound_entry_list_from_json = []
-        self.sound_entry_path_map = dict()
-        if self.key_bind_map is None:
-            self.key_bind_map = dict()
-            if os.path.exists("x.wav"):
-                self.createAndAddSoundEntry("x.wav", ['control','multiply'])
-            for number in "1234567890":
-                file_name = "x" + number + ".wav"
-                if os.path.exists(file_name):
-                    self.createAndAddSoundEntry(file_name, [number, "next"])
+    def __init__(self, sound_library):
+        '''
+        Acts as a storage container and manager for all the SoundEntry instances
+        Can globally shift all pitches, find the best matching sound entry given a string, or stop all sounds
+        :param sound_library: SoundLibrary
+        '''
 
-    def ingestSoundboardJsonConfigFile(self, config_file_path):
-        with open(config_file_path) as config_file:
-            config_object = json.load(config_file)
-            soundboard_entries = config_object["soundboardEntries"]
-            for soundboard_entry in soundboard_entries:
-                try:
-                    path_to_sound_file = soundboard_entry["file"]
-                    if os.path.exists(path_to_sound_file):
-                        activation_key_names = soundboard_entry["activationKeyNames"]
-                        soundEntry_to_add = SoundEntry(path_to_sound_file, activation_keys=frozenset(activation_key_names))
-                        self.addSoundEntry(soundEntry_to_add)
-                        self.sound_entry_list_from_json.append(soundEntry_to_add)
+        self.key_bind_map = OrderedDict()
+        self.sound_entry_path_map = OrderedDict()
 
-                except:
-                    print "failed to ingest", soundboard_entry["file"]
-
+        for activation_keys, sound_path in sound_library.getKeyBindMap().items():
+            sound_entry = SoundEntry(sound_path, activation_keys=activation_keys)
+            self.addSoundEntry(sound_entry)
 
     def addSoundEntry(self, soundEntry):
         self.sound_entry_path_map[soundEntry.path_to_sound] = soundEntry

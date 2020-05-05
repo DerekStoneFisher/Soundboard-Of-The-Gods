@@ -1,11 +1,9 @@
 import tkinter as tk
 import tkinter.font as tkFont
 import json, os
-from Audio_Proj_Const import KEY_ID_TO_NAME_MAP, convertJavaKeyIDToRegularKeyID, getKeyNames
 from KeyPress import KeyPressManager
 
 
-from Json_Editor import SOUNDBOARD_JSON_FILE
 
 FONT_SIZE = 9
 

@@ -185,3 +185,26 @@ NAME_OVERRIDE_LIST = {
     'oem_6':']',
     'oem_7':"'",
 }
+
+def keyNamesAreValid(key_name_list):
+    '''
+    :param key_name_list: list(str)
+    :return: bool
+    '''
+    for key_name in key_name_list:
+        if key_name not in KEY_NAMES and key_name not in NAME_OVERRIDE_LIST.values():
+            return False
+    return True
+
+def getOverriddenVersionOfKeyNames(key_name_list):
+    '''
+    :param key_name_list: list(str)
+    :return: list(str)
+    '''
+    overriden_key_names = []
+    for key_name in key_name_list:
+        if key_name in NAME_OVERRIDE_LIST:
+            overriden_key_names.append(NAME_OVERRIDE_LIST[key_name])
+        else:
+            overriden_key_names.append(key_name)
+    return overriden_key_names

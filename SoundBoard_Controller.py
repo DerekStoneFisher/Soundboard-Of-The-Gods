@@ -2,7 +2,6 @@ import os
 from SoundBoard_GUI import SoundBoardGUI
 import pyHook
 from Recorder import AudioRecorder
-from Json_Editor import JsonEditor
 from Sound_Library import SoundLibrary
 from Pitch_Controller import PitchController
 
@@ -15,9 +14,7 @@ PITCH_MODIFIERS = {'1':-.75, '2':-.6, '3':-.45, '4':-.3, '5':-.15, '6':0, '7':.1
 PITCH_SHIFT_AMOUNT = .1 # what multiplier is used to adjust the pitch with the left and right arrows
 SHIFT_SECONDS = .1 # by how many seconds will the up and down arrows move the marked frame index
 SOUNDBOARD_JSON_FILE = "Board1.json"
-SOUNDBOARD_JSON_FILE_EDITED = "Board1_edited.json"
 SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH = "C:/Users/Admin/Desktop/Soundboard"
-SOUND_LIBRARY_JSON = "Board2.json"
 
 
 class SoundBoardController:
@@ -146,12 +143,12 @@ class SoundBoardController:
             self.getCurrentSoundEntry().activateSlowMotion()
         elif self.keyPressManager.endingKeysEqual(["tab", "up"]):
             self.getCurrentSoundEntry().activateSpeedUpMotion()
-        elif self.keyPressManager.endingKeysEqual(["tab","oem_5"]) or self.keyPressManager.endingKeysEqual(["tab", "2"]): # tab \
+        elif self.keyPressManager.endingKeysEqual(["tab","\\"]) or self.keyPressManager.endingKeysEqual(["tab", "2"]):
             self.getCurrentSoundEntry().activateOscillate()
-        elif self.keyPressManager.endingKeysEqual(["tab", "oem_4"]): # tab [
+        elif self.keyPressManager.endingKeysEqual(["tab", "["]):
             self.getCurrentSoundEntry().frames_between_oscillate_shifts -= 1
             print "oscillate peak:", self.getCurrentSoundEntry().frames_between_oscillate_shifts
-        elif self.keyPressManager.endingKeysEqual(["tab", "oem_6"]): # tab ]
+        elif self.keyPressManager.endingKeysEqual(["tab", "]"]):
             self.getCurrentSoundEntry().frames_between_oscillate_shifts += 1
             print "oscillate peak:", self.getCurrentSoundEntry().frames_between_oscillate_shifts
         elif self.keyPressManager.endingKeysEqual(["tab", "o"]):
@@ -170,7 +167,7 @@ class SoundBoardController:
             self.getCurrentSoundEntry().markSecondaryFrameIndex()
         elif self.keyPressManager.endingKeysEqual(["1", "2"]):
             self.swapCurrentAndPreviousSoundEntry()
-        elif self.keyPressManager.endingKeysEqual(["oem_3"]):
+        elif self.keyPressManager.endingKeysEqual(["`"]):
              self.getCurrentSoundEntry().stop() # no new thread needed
         elif self.keyPressManager.endingKeysEqual(["1", "6"]) :
             self.soundCollection.playSoundToFinish(self.getCurrentSoundEntry())
@@ -230,16 +227,13 @@ class SoundBoardController:
 
 
 if __name__ == "__main__":
-    jsonEditor = JsonEditor()
-    jsonEditor.runJsonUpdateRoutine(SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_JSON_FILE_EDITED, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
-
-    soundCollection = SoundCollection()
-    soundCollection.ingestSoundboardJsonConfigFile(SOUNDBOARD_JSON_FILE_EDITED)
+    soundLibrary = SoundLibrary(SOUNDBOARD_JSON_FILE, SOUNDBOARD_SOUNDS_BASE_FOLDER_PATH)
+    soundCollection = SoundCollection(soundLibrary)
     for key_bind in soundCollection.key_bind_map:
         print list(key_bind), os.path.basename(soundCollection.key_bind_map[key_bind].path_to_sound)
 
     keyPressManager = KeyPressManager()
-    soundLibrary = SoundLibrary(SOUND_LIBRARY_JSON)
+
     audioRecorder = AudioRecorder(soundCollection)
     soundboardController = SoundBoardController(soundCollection, keyPressManager, audioRecorder)
     soundBoardGUI = SoundBoardGUI(soundCollection, keyPressManager, audioRecorder, soundboardController, soundLibrary)
