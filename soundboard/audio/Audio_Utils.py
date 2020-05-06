@@ -11,10 +11,9 @@ DEFAULT_DBFS = -20.0
 SILENCE_THRESHOLD = 500
 
 
-def writeFramesToFile(frames, filename, normalize=True):
-    if os.path.exists(filename) and "Extended_Audio" not in filename:
+def writeFramesToFile(frames, filename, backup_old_sound, normalize=True):
+    if backup_old_sound and os.path.exists(filename):
         copyfileToBackupFolder(filename)
-        # os.remove(filename)
     wf = wave.open(filename, 'wb')
     try:
         wf.setnchannels(Const.CHANNELS)
@@ -25,8 +24,6 @@ def writeFramesToFile(frames, filename, normalize=True):
         wf.writeframes(b''.join(frames))
     finally:
         wf.close()
-
-
 
 def getFramesFromFile(filename):
     try:
@@ -80,20 +77,6 @@ def buildFrameFromAtomicAudioUnits(atomic_wav_bytes):
         new_frame += atomic_audio_chunk
 
     return new_frame
-
-
-def getTimeStretchedFrame(frame, time_strech_amount, is_increase):
-    atomic_audio_units = unpackFrameIntoAtomicAudioUnits(frame)
-    print len(atomic_audio_units)
-    atomic_audio_units = [x for i,x in enumerate(atomic_audio_units) if i % 2 == 0]
-    print len(atomic_audio_units)
-    return buildFrameFromAtomicAudioUnits(atomic_audio_units)
-
-
-
-
-
-
 
 def getNormalizedAudioFrames(frames, target_dBFS):
     sound = AudioSegment(b''.join(frames), sample_width=Const.SAMPLE_WIDTH, frame_rate=Const.FRAME_RATE, channels=Const.CHANNELS)

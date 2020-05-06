@@ -60,7 +60,7 @@ class SoundBoardGUI:
         frames = self.recorder.getCurrentRecording()
         # write the frames to a file, update the sound collection so we can play it, update the Json so it stays after restarting
         print("addSound soundPath={}, activation_keys={}, frames={}".format(sound_path, activation_keys, len(frames)))
-        Audio_Utils.writeFramesToFile(frames, sound_path)
+        Audio_Utils.writeFramesToFile(frames, sound_path, False)
         self.soundCollection.createAndAddSoundEntry(sound_path, activation_keys)
         self.soundLibrary.add(sound_path, activation_keys)
 

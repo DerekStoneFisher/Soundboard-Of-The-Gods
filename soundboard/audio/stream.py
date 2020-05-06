@@ -86,7 +86,6 @@ class StreamBuilder:
         if input_device_index is None:
             print "getInputStream passed a null input_device_index, so it is returning null"
             return None
-        this = StreamBuilder
         return pyaudio.PyAudio().open(
             format=Const.FORMAT,
             channels=Const.CHANNELS,
