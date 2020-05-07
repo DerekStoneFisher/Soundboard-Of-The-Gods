@@ -1,50 +1,45 @@
 from pydub import AudioSegment
-import itertools
-import array
-import pydub.playback
 import wave
 import os
 import shutil
 import datetime
-import struct
 import pyaudio
-import CONST
+from stream import Const
 import array
 
 DEFAULT_DBFS = -20.0
 SILENCE_THRESHOLD = 500
 
 
-def writeFramesToFile(frames, filename, normalize=True):
-    if os.path.exists(filename) and "Extended_Audio" not in filename:
+def writeFramesToFile(frames, filename, backup_old_sound, normalize=True):
+    if backup_old_sound and os.path.exists(filename):
         copyfileToBackupFolder(filename)
-        os.remove(filename)
-    with wave.open(filename, 'wb') as wf:
-        wf.setnchannels(CONST.CHANNELS)
-        wf.setsampwidth(CONST.SAMPLE_WIDTH)
-        wf.setframerate(CONST.FRAME_RATE)
+    wf = wave.open(filename, 'wb')
+    try:
+        wf.setnchannels(Const.CHANNELS)
+        wf.setsampwidth(Const.SAMPLE_WIDTH)
+        wf.setframerate(Const.FRAME_RATE)
         if normalize:
             frames = getNormalizedAudioFrames(frames, DEFAULT_DBFS)
         wf.writeframes(b''.join(frames))
-
-
+    finally:
+        wf.close()
 
 def getFramesFromFile(filename):
     try:
         if os.path.exists(filename):
             wf = wave.open(filename, 'rb')
             frames = []
-            frame = wf.readframes(CONST.FRAMES_PER_BUFFER)
+            frame = wf.readframes(Const.FRAMES_PER_BUFFER)
             while frame != '':
                 frames.append(frame)
-                frame = wf.readframes(CONST.FRAMES_PER_BUFFER)
+                frame = wf.readframes(Const.FRAMES_PER_BUFFER)
             wf.close()
             return frames
         else:
             raise ValueError("error: read from from file because file does not exist\tfilename=" + str(filename))
     except:
         print "failed to getFramesFromfile for filename"+filename
-        raise
 
 
 def getReversedFrames(frames):
@@ -83,25 +78,11 @@ def buildFrameFromAtomicAudioUnits(atomic_wav_bytes):
 
     return new_frame
 
-
-def getTimeStretchedFrame(frame, time_strech_amount, is_increase):
-    atomic_audio_units = unpackFrameIntoAtomicAudioUnits(frame)
-    print len(atomic_audio_units)
-    atomic_audio_units = [x for i,x in enumerate(atomic_audio_units) if i % 2 == 0]
-    print len(atomic_audio_units)
-    return buildFrameFromAtomicAudioUnits(atomic_audio_units)
-
-
-
-
-
-
-
 def getNormalizedAudioFrames(frames, target_dBFS):
-    sound = AudioSegment(b''.join(frames), sample_width=CONST.SAMPLE_WIDTH, frame_rate=CONST.FRAME_RATE, channels=CONST.CHANNELS)
+    sound = AudioSegment(b''.join(frames), sample_width=Const.SAMPLE_WIDTH, frame_rate=Const.FRAME_RATE, channels=Const.CHANNELS)
     normalized_sound = getSoundWithMatchedAmplitude(sound, target_dBFS)
     normalized_sound_as_bytestring = normalized_sound.raw_data
-    normalized_bytestream_as_frame_list = [normalized_sound_as_bytestring[i:i+CONST.FRAMES_PER_BUFFER] for i in range(0, len(normalized_sound_as_bytestring), CONST.FRAMES_PER_BUFFER)] # slice bystestring into chunks of 1024 bytes
+    normalized_bytestream_as_frame_list = [normalized_sound_as_bytestring[i:i+Const.FRAMES_PER_BUFFER] for i in range(0, len(normalized_sound_as_bytestring), Const.FRAMES_PER_BUFFER)] # slice bystestring into chunks of 1024 bytes
     return normalized_bytestream_as_frame_list
 
 def getSoundWithMatchedAmplitude(sound, target_dBFS):
@@ -160,43 +141,6 @@ def trimStart(infile, outfilename, trim_ms):
     infile.close()
 
     shutil.move("_"+outfilename, outfilename)
-
-
-def getIndexOfStereoMix():
-    p = pyaudio.PyAudio()
-    device_count = p.get_device_count()
-    print "searching for stereo mix..."
-    for i in range(0, device_count):
-        current_device = p.get_device_info_by_index(i)
-        device_name = current_device["name"]
-        device_index = current_device["index"]
-        is_input_device = current_device["maxInputChannels"] > 0
-        if is_input_device and 'Stereo Mix' in device_name:
-            print 'found stereo mix "' + device_name + '" at index ' + str(device_index)
-            return device_index
-    default_device = p.get_default_input_device_info()
-    print 'WARNING: failed to find stereo mix. using default input device "' + default_device['name'] + ' at index ' + str(default_device['index'])
-    return default_device['index']
-
-def getIndexOfSpeakers():
-    speakers_info = pyaudio.PyAudio().get_default_output_device_info()
-    print 'found speakers "', speakers_info['name'], 'at index ', speakers_info['index']
-    return speakers_info['index']
-
-def getIndexOfVirtualAudioCable():
-    p = pyaudio.PyAudio()
-    device_count = p.get_device_count()
-    print "searching for virtual audio cable..."
-    for i in range(0, device_count):
-        current_device = p.get_device_info_by_index(i)
-        device_name = current_device["name"]
-        device_index = current_device["index"]
-        is_output_device = current_device["maxOutputChannels"] > 0
-        if is_output_device and ("cable" in device_name.lower() or "virtual" in device_name.lower()):
-            print 'found virtual audio cable "' + device_name + '" at index ' + str(device_index)
-            return device_index
-    print "WARNING: failed to find virtual audio cable... Soundboard will not be audible over the microphone, only through your speakers."
-    return None
 
 
 

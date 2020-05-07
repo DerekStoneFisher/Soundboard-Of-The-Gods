@@ -1,126 +1,29 @@
+from collections import OrderedDict
 import Audio_Utils
 import pyaudio
-import json
-
 import BPM_Utils
-from Audio_Proj_Const import KEY_ID_TO_NAME_MAP, convertJavaKeyIDToRegularKeyID
 import os
 import time, thread
-import array
-VIRTUAL_AUDIO_CABLE_AVAILABLE = Audio_Utils.getIndexOfVirtualAudioCable() is not None
-SPEAKERS_INDEX = Audio_Utils.getIndexOfSpeakers()
-VIRTUAL_AUDIO_CABLE_INDEX = Audio_Utils.getIndexOfVirtualAudioCable()
-STREAM_COUNT = 10
-p = pyaudio.PyAudio()
 
+from soundboard.audio.stream import SharedStreamManager
+from random import randrange
 
-class SharedStreamCollection:
-    def __init__(self):
-        self.shared_streams = [SharedStream() for i in range(0, STREAM_COUNT)]
-
-    def getUnusedStreamAndIndex(self):
-        '''
-        the SoundEntry that calls this function is responsible for saving the index of the stream and
-        calling releaseStreamAtIndex with that index when done with the stream
-        :return: SoundEntry, int
-        '''
-        for i, stream in enumerate(self.shared_streams):
-            if not stream.in_use:
-                stream.in_use = True
-                return stream, i
-
-        print "could not find a free stream, adding a new one and returning that one"
-        self.shared_streams.append(SharedStream())
-        return self.shared_streams[-1]
-
-    def releaseStreamAtIndex(self, index):
-        self.shared_streams[index].in_use = False
-
-
-
-class SharedStream:
-    '''
-    one soundEntry can play sounds to a SharedStream at a time
-    a sharedStream usually has 1 stream for the speaker and 1 stream for the virtual audio cable. These are stored in output_streams
-    a
-    '''
-    def __init__(self):
-        self.in_use = False
-        # self._speaker_stream = speaker_stream
-        # self._virtual_audio_cable_stream = virtual_audio_cable_stream
-        self.output_streams = [] # usually will have 1 stream for speaker, 1 stream for virtual audio cable
-        # self.sound_using_the_stream = None
-        self._initializeSpeakerAndVirtualStream()
-
-    #
-    # def inUse(self):
-    #     return self._in_use
-
-    def playFrame(self, frame):
-        for stream in self.output_streams:
-            stream.write(frame)
-
-
-    def _initializeSpeakerAndVirtualStream(self):
-        speaker_stream = p.open(
-            format=pyaudio.paInt16,
-            channels=2,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024,
-            output=True,
-            output_device_index=SPEAKERS_INDEX
-         )
-        self.output_streams.append(speaker_stream)
-
-        if VIRTUAL_AUDIO_CABLE_AVAILABLE:
-            virtual_speaker_stream = p.open(
-                format=pyaudio.paInt16,
-                channels=2,
-                rate=44100,
-                input=True,
-                frames_per_buffer=1024,
-                output=True,
-                output_device_index=VIRTUAL_AUDIO_CABLE_INDEX
-            )
-            self.output_streams.append(virtual_speaker_stream)
-
-
-
-SHARED_STREAM_COLLECTION = SharedStreamCollection()
 
 
 class SoundCollection:
-    def __init__(self, key_bind_map=None):
-        self.key_bind_map = key_bind_map
-        self.sound_entry_list_from_json = []
-        self.sound_entry_path_map = dict()
-        if self.key_bind_map is None:
-            self.key_bind_map = dict()
-            if os.path.exists("x.wav"):
-                self.createAndAddSoundEntry("x.wav", ['control','multiply'])
-            for number in "1234567890":
-                file_name = "x" + number + ".wav"
-                if os.path.exists(file_name):
-                    self.createAndAddSoundEntry(file_name, [number, "next"])
+    def __init__(self, sound_library):
+        '''
+        Acts as a storage container and manager for all the SoundEntry instances
+        Can globally shift all pitches, find the best matching sound entry given a string, or stop all sounds
+        :param sound_library: SoundLibrary
+        '''
 
-    def ingestSoundboardJsonConfigFile(self, config_file_path):
-        with open(config_file_path) as config_file:
-            config_object = json.load(config_file)
-            soundboard_entries = config_object["soundboardEntries"]
-            for soundboard_entry in soundboard_entries:
-                try:
-                    path_to_sound_file = soundboard_entry["file"]
-                    activation_key_codes = soundboard_entry["activationKeysNumbers"]
-                    if os.path.exists(path_to_sound_file):
-                        activation_key_names = [KEY_ID_TO_NAME_MAP[convertJavaKeyIDToRegularKeyID(key_code)].lower() for key_code in activation_key_codes]
-                        soundEntry_to_add = SoundEntry(path_to_sound_file, activation_keys=frozenset(activation_key_names))
-                        self.addSoundEntry(soundEntry_to_add)
-                        self.sound_entry_list_from_json.append(soundEntry_to_add)
+        self.key_bind_map = OrderedDict()
+        self.sound_entry_path_map = OrderedDict()
 
-                except:
-                    print "failed to ingest", soundboard_entry["file"]
-
+        for activation_keys, sound_path in sound_library.getKeyBindMap().items():
+            sound_entry = SoundEntry(sound_path, activation_keys=activation_keys)
+            self.addSoundEntry(sound_entry)
 
     def addSoundEntry(self, soundEntry):
         self.sound_entry_path_map[soundEntry.path_to_sound] = soundEntry
@@ -221,10 +124,11 @@ class SoundEntry:
         self.speed_up_started = False # signal to start speeding up  for "speed_up_to_normal" frames left
         self.speed_up_frames_left = 0 # number of frames to continue speeding up for
 
-        self.oscillate_shift = .01 # cycles between negative and positive during oscillation
-        self.frames_between_oscillate_shifts = 60
-        self.half_oscillation_cycles_remaining = 0 # how many times the pitch will shift up and down (going up and then down is 2 half oscillation cycles)
-        self.oscillation_frame_counter = 0 # used with modulo to keep track of when to switch oscillate_shift from positive and negative
+        self.oscillation_rate = .1 # .03 # cycles between negative and positive during oscillation
+        self.oscillation_amplitude = 1
+        self.oscillation_frames_remaining = 0
+        self.oscillation_generator = None
+        self.oscillation_pause_frequency = 0
 
         self.current_sharedStream = None
         self.shared_steam_index = None
@@ -257,7 +161,7 @@ class SoundEntry:
             raise ValueError("Error: cannot play sound self.frames == None. The sound file was most likely deleted. sound = " + self.path_to_sound)
 
         if self.current_sharedStream is None:
-            self.current_sharedStream, self.shared_steam_index = SHARED_STREAM_COLLECTION.getUnusedStreamAndIndex()
+            self.current_sharedStream, self.shared_steam_index = SharedStreamManager.getUnusedStreamAndIndex()
         if self.frames is None and os.path.exists(self.path_to_sound):
             self.reloadFramesFromFile()
 
@@ -282,18 +186,10 @@ class SoundEntry:
                 self.frame_index = self.index_before_jump + (self.frame_index - self.marked_frame_index)
                 self.undo_marked_frame_jump = False
 
-            current_frame = self.frames[self.frame_index]
+            current_frame = self.frames[min(self.frame_index, len(self.frames)-1)]
 
-            if self.half_oscillation_cycles_remaining > 0:
-                if self.oscillation_frame_counter % self.frames_between_oscillate_shifts == 0:
-                    self.oscillate_shift = -self.oscillate_shift # switch between negative and positive
-                    self.half_oscillation_cycles_remaining -= 1
-                self.pitch_modifier += self.oscillate_shift
-                self.oscillation_frame_counter += 1
-
-                if self.half_oscillation_cycles_remaining == 0: # for the very last iteration
-                    self.pitch_modifier += abs(self.oscillate_shift) # shift pitch up one extra time, otherwise, we end up 1 oscillate_shift lower than where we started
-
+            if self.oscillation_frames_remaining > 0:
+                next(self.oscillation_generator)
 
             # do slow motion stuff here
             if self.slow_motion_started:
@@ -318,9 +214,9 @@ class SoundEntry:
 
             if self.pitch_modifier != 0:
                 current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
-                if self.frame_index % 100 == 0:
-                    print "current pitch is ", self.pitch_modifier
-                    print "oscillation shift is", self.oscillate_shift, "frames between oscillation shifts", self.frames_between_oscillate_shifts
+                # if self.frame_index % 100 == 0:
+                #     print "current pitch is ", self.pitch_modifier
+                #     print "oscillation shift is", self.oscillate_shift, "frames between oscillation shifts", self.frames_between_oscillate_shifts, "half_oscillation_cycles_remaining", self.half_oscillation_cycles_remaining
 
 
             self._writeFrameToStreams(current_frame)
@@ -335,7 +231,7 @@ class SoundEntry:
                 self.frame_index += 1
 
         self.is_playing = False
-        SHARED_STREAM_COLLECTION.releaseStreamAtIndex(self.shared_steam_index)
+        SharedStreamManager.releaseStreamAtIndex(self.shared_steam_index)
         self.current_sharedStream = None
 
     def _writeFrameToStreams(self, frame):
@@ -406,6 +302,7 @@ class SoundEntry:
                 self.play()
 
     def shiftPitch(self, amount):
+        print "pitch", self.pitch_modifier, " -> ", self.pitch_modifier+amount
         self.pitch_modifier += amount
 
     def activateSlowMotion(self):
@@ -417,10 +314,47 @@ class SoundEntry:
         self.speed_up_started = True
 
     def activateOscillate(self):
-        if self.half_oscillation_cycles_remaining == 0: #  trying to oscillate while we are already doing so is a bad idea
-            self.oscillate_shift = abs(self.oscillate_shift)
-            self.half_oscillation_cycles_remaining = 5
-            self.oscillation_frame_counter = 0
+        self.oscillation_frames_remaining = 240
+        if self.oscillation_generator is None:
+            self.oscillation_generator = self.oscillate()
+
+
+    def oscillate(self):
+        """
+        """
+        print('first call')
+        direction = 1.0 # switch to -1 when we hit the peak
+        curr_wave_height = 0.0
+        print curr_wave_height
+        pauses_left = self.oscillation_pause_frequency
+
+        while self.oscillation_frames_remaining > 0:
+            while pauses_left > 0:
+                pauses_left -= 1
+                yield
+            if self.oscillation_pause_frequency > 0:
+                pauses_left = randrange(0, self.oscillation_pause_frequency)
+
+            if direction == 1 and curr_wave_height >= self.oscillation_amplitude/2:
+                direction = -1
+            elif direction == -1 and curr_wave_height <= -self.oscillation_amplitude/2:
+                direction = 1
+
+            # separately add to both
+            curr_wave_height += (self.oscillation_rate * direction)
+            self.pitch_modifier += (self.oscillation_rate * direction)
+
+            self.oscillation_frames_remaining -= 1
+
+            if self.oscillation_frames_remaining == 0 and abs(curr_wave_height) > 0.0001:
+                print "0 frames left but curr_wave_height is", curr_wave_height, "so setting frames left to", curr_wave_height / self.oscillation_rate
+                self.oscillation_frames_remaining = abs(curr_wave_height // self.oscillation_rate)
+                # if abs(self.pitch_modifier) > 0.0001:
+                #     print "last iteration, self.pitch_modifier", self.pitch_modifier, "-= curr_wave_height", curr_wave_height
+                #     self.pitch_modifier -= curr_wave_height
+            print curr_wave_height
+            yield
+
 
     def getSoundName(self):
         return os.path.basename(self.path_to_sound).replace(".wav", "")
@@ -459,3 +393,6 @@ class SoundEntry:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.path_to_sound)

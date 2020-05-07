@@ -1,4 +1,4 @@
-from Audio_Proj_Const import NAME_OVERRIDE_LIST
+from Key_Utils import NAME_OVERRIDE_LIST
 
 KEY_STATE_QUEUE_MAX_SIZE = 5
 
