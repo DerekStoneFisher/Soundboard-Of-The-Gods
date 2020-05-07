@@ -118,7 +118,7 @@ class SoundBoardController:
             self.recorder.loadNextRecording()
         elif keyPressManager.endingKeysEqual(["tab", "delete"]):
             self.recorder.deleteCurrentRecording()
-        elif keyPressManager.endingKeysEqual(["tab", "'"]):
+        elif keyPressManager.endingKeysEqual(["tab", "/"]):
             self.recorder.renameCurrentRecording()
         elif self.keyPressManager.endingKeysEqual(["menu", "left"]): # alt + left -> shift down pitch of currently playing sound
             self.soundCollection.shiftAllPitches(-PITCH_SHIFT_AMOUNT)
@@ -138,17 +138,23 @@ class SoundBoardController:
         elif self.keyPressManager.endingKeysEqual(["tab","\\"]) or self.keyPressManager.endingKeysEqual(["tab", "2"]):
             self.getCurrentSoundEntry().activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "["]):
-            self.getCurrentSoundEntry().frames_between_oscillate_shifts -= 1
-            print "oscillate peak:", self.getCurrentSoundEntry().frames_between_oscillate_shifts
+            self.getCurrentSoundEntry().oscillation_rate -= .01
+            print "oscillation_rate:", self.getCurrentSoundEntry().oscillation_rate
         elif self.keyPressManager.endingKeysEqual(["tab", "]"]):
-            self.getCurrentSoundEntry().frames_between_oscillate_shifts += 1
-            print "oscillate peak:", self.getCurrentSoundEntry().frames_between_oscillate_shifts
+            self.getCurrentSoundEntry().oscillation_rate += .01
+            print "oscillation_rate:", self.getCurrentSoundEntry().oscillation_rate
         elif self.keyPressManager.endingKeysEqual(["tab", "o"]):
-            self.getCurrentSoundEntry().oscillate_shift -= .01
-            print "oscillate amount:", self.getCurrentSoundEntry().oscillate_shift
+            self.getCurrentSoundEntry().oscillation_amplitude -= .1
+            print "oscillation_amplitude:", self.getCurrentSoundEntry().oscillation_amplitude
         elif self.keyPressManager.endingKeysEqual(["tab", "p"]):
-            self.getCurrentSoundEntry().oscillate_shift += .01
-            print "oscillate amount:", self.getCurrentSoundEntry().oscillate_shift
+            self.getCurrentSoundEntry().oscillation_amplitude += .1
+            print "oscillation_amplitude:", self.getCurrentSoundEntry().oscillation_amplitude
+        elif self.keyPressManager.endingKeysEqual(["tab", ";"]):
+            self.getCurrentSoundEntry().oscillation_pause_frequency -= 1
+            print "pause_frequency:", self.getCurrentSoundEntry().oscillation_pause_frequency
+        elif self.keyPressManager.endingKeysEqual(["tab", "'"]):
+            self.getCurrentSoundEntry().oscillation_pause_frequency += 1
+            print "pause_frequency:", self.getCurrentSoundEntry().oscillation_pause_frequency
         elif self.keyPressManager.endingKeysEqual(["up"]):
             self.getCurrentSoundEntry().moveMarkedFrameIndex(SHIFT_SECONDS)
         elif self.keyPressManager.endingKeysEqual(["down"]):

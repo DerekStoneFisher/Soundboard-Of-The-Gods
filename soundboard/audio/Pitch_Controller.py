@@ -1,25 +1,49 @@
 import time, thread, threading
 from Sound import SoundEntry
 
-class PitchController:
+class PitchController(object):
     '''
     Spawns threads to modify the pitches of sounds that get passed to its functions
     '''
-    oscillate_lock = threading.Lock()
-    sounds_being_oscillated = set()
+    oscillation_pause_frequency = 0
+    oscillation_rate = .1
+    oscillation_amplitude = 1
+
 
     oscillate_amplitude = 1.0 # (max of oscillation - min of oscillation) / 2
     oscillate_pitch_shift_per_second = 5.0 # how fast the oscillations occur
-    # oscillations_per_second = .5
-    total_seconds_of_oscillations = 1.0 # how long the sound is oscillated for
 
-    ticks_per_second = 400.0  # around 2ms per tick, otherwise sleeping stops working
-    # pitch_shift_per_tick = (2.0 * this.oscillate_amplitude * this.oscillations_per_second) / ticks_per_second
-    pitch_shift_per_tick = oscillate_pitch_shift_per_second / ticks_per_second
-    tick_duration_seconds = 1.0 / ticks_per_second
 
-    def __init__(self):
-        pass
+    @classmethod
+    def genOscillate(cls, sound_entry):
+        direction = 1.0 # switch to -1 when we hit the peak
+        curr_wave_height = 0.0
+        pauses_left = cls.oscillation_pause_frequency
+
+        while sound_entry.oscillation_frames_remaining > 0:
+            while pauses_left > 0:
+                pauses_left -= 1
+                yield
+            pauses_left = cls.oscillation_pause_frequency
+
+            if direction == 1 and curr_wave_height >= cls.oscillation_amplitude/2:
+                direction = -1
+            elif direction == -1 and curr_wave_height <= -cls.oscillation_amplitude/2:
+                direction = 1
+
+            # separately add to both
+            curr_wave_height += (cls.oscillation_rate * direction)
+            sound_entry.pitch_modifier += (cls.oscillation_rate * direction)
+
+            cls.oscillation_frames_remaining -= 1
+
+            if cls.oscillation_frames_remaining == 0 and abs(curr_wave_height) > 0.0001:
+                print "0 frames left but curr_wave_height is", curr_wave_height, "so setting frames left to", curr_wave_height / cls.oscillation_rate
+                cls.oscillation_frames_remaining = abs(curr_wave_height // cls.oscillation_rate)
+            print curr_wave_height
+            yield
+
+
 
     @staticmethod
     def oscillateSound(sound):

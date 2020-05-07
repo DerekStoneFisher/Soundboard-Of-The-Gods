@@ -6,6 +6,7 @@ import os
 import time, thread
 
 from soundboard.audio.stream import SharedStreamManager
+from random import randrange
 
 
 
@@ -123,10 +124,11 @@ class SoundEntry:
         self.speed_up_started = False # signal to start speeding up  for "speed_up_to_normal" frames left
         self.speed_up_frames_left = 0 # number of frames to continue speeding up for
 
-        self.oscillate_shift = .01 # .03 # cycles between negative and positive during oscillation
-        self.frames_between_oscillate_shifts = 60 #10
-        self.half_oscillation_cycles_remaining = 0 # how many times the pitch will shift up and down (going up and then down is 2 half oscillation cycles)
-        self.oscillation_frame_counter = 0 # used with modulo to keep track of when to switch oscillate_shift from positive and negative
+        self.oscillation_rate = .1 # .03 # cycles between negative and positive during oscillation
+        self.oscillation_amplitude = 1
+        self.oscillation_frames_remaining = 0
+        self.oscillation_generator = None
+        self.oscillation_pause_frequency = 0
 
         self.current_sharedStream = None
         self.shared_steam_index = None
@@ -186,17 +188,8 @@ class SoundEntry:
 
             current_frame = self.frames[min(self.frame_index, len(self.frames)-1)]
 
-            if self.half_oscillation_cycles_remaining > 0:
-                # print "pitch:", self.pitch_modifier, "oscillation_frame_counter: ", self.oscillation_frame_counter, "half_oscillation_cycles_remaining", self.half_oscillation_cycles_remaining
-                if self.oscillation_frame_counter != 0 and self.oscillation_frame_counter % self.frames_between_oscillate_shifts == 0:
-                    self.oscillate_shift = -self.oscillate_shift # switch between negative and positive
-                    self.half_oscillation_cycles_remaining -= 1
-                self.pitch_modifier += self.oscillate_shift
-                self.oscillation_frame_counter += 1
-
-                if self.half_oscillation_cycles_remaining == 0: # for the very last iteration
-                    self.pitch_modifier -= abs(self.oscillate_shift) # shift pitch up one extra time, otherwise, we end up 1 oscillate_shift lower than where we started
-
+            if self.oscillation_frames_remaining > 0:
+                next(self.oscillation_generator)
 
             # do slow motion stuff here
             if self.slow_motion_started:
@@ -321,14 +314,47 @@ class SoundEntry:
         self.speed_up_started = True
 
     def activateOscillate(self):
-        print " - oscillate amount:", self.oscillate_shift
-        print " - oscillate peak:", self.frames_between_oscillate_shifts
-        print " - cycles:", ((240 // self.frames_between_oscillate_shifts) // 2) * 2
-        if self.half_oscillation_cycles_remaining == 0: #  trying to oscillate while we are already doing so is a bad idea
+        self.oscillation_frames_remaining = 240
+        if self.oscillation_generator is None:
+            self.oscillation_generator = self.oscillate()
 
-            self.oscillate_shift = abs(self.oscillate_shift)
-            self.half_oscillation_cycles_remaining = ((240 // self.frames_between_oscillate_shifts) // 2) * 2
-            self.oscillation_frame_counter = 0
+
+    def oscillate(self):
+        """
+        """
+        print('first call')
+        direction = 1.0 # switch to -1 when we hit the peak
+        curr_wave_height = 0.0
+        print curr_wave_height
+        pauses_left = self.oscillation_pause_frequency
+
+        while self.oscillation_frames_remaining > 0:
+            while pauses_left > 0:
+                pauses_left -= 1
+                yield
+            if self.oscillation_pause_frequency > 0:
+                pauses_left = randrange(0, self.oscillation_pause_frequency)
+
+            if direction == 1 and curr_wave_height >= self.oscillation_amplitude/2:
+                direction = -1
+            elif direction == -1 and curr_wave_height <= -self.oscillation_amplitude/2:
+                direction = 1
+
+            # separately add to both
+            curr_wave_height += (self.oscillation_rate * direction)
+            self.pitch_modifier += (self.oscillation_rate * direction)
+
+            self.oscillation_frames_remaining -= 1
+
+            if self.oscillation_frames_remaining == 0 and abs(curr_wave_height) > 0.0001:
+                print "0 frames left but curr_wave_height is", curr_wave_height, "so setting frames left to", curr_wave_height / self.oscillation_rate
+                self.oscillation_frames_remaining = abs(curr_wave_height // self.oscillation_rate)
+                # if abs(self.pitch_modifier) > 0.0001:
+                #     print "last iteration, self.pitch_modifier", self.pitch_modifier, "-= curr_wave_height", curr_wave_height
+                #     self.pitch_modifier -= curr_wave_height
+            print curr_wave_height
+            yield
+
 
     def getSoundName(self):
         return os.path.basename(self.path_to_sound).replace(".wav", "")

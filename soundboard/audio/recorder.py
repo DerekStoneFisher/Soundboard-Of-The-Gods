@@ -31,7 +31,7 @@ class RecordingManager:
 
         self._preemptivelyLoadFramesForNextFewRecordings()
 
-    def toggleRecord(self):
+    def toggleRecord(self, auto_save=True):
         if not self.recorder.isRecording():
             self.recorder.startRecording()
         else:
@@ -40,7 +40,13 @@ class RecordingManager:
 
             recording_name = "recording " + str(uuid.uuid4()) + '.wav'
             self.recording_names.append(recording_name)
+            self.current_index = len(self.recording_names)-1
             self.recording_names_to_frames[recording_name] = saved_frames
+            self.sound_entry_to_write_to.frames = saved_frames
+
+            if auto_save:
+                self.saveCurrentRecordingToFile()
+
 
     def deleteCurrentRecording(self):
         recording_name = self.recording_names[self.current_index]

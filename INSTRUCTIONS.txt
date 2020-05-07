@@ -1,6 +1,0 @@
-For some reason, when you start the program it doesn't open any kind of window - it just runs in the background. So if you open it and nothing happens, that's normal
-
-alt + q/w/e/r = save last 1 second of audio to q/w/e/r.wav (also saves last 10 seconds in extended_audio folder)
-q/w/e/r + 1/2/3/4/5/6/7/8/9 = make q/w/e/r.wav 1/2/3/4/5/6/7/8/9 seconds long instead of just 1 second long.
-q/w/e/r + right arrow = trim the START of q/w/e/r audio file by .5 seconds (moves start of audio further forward)
-q/w/e/r + left arrow = trim the END of q/w/e/r audio by .5 seconds (moves end of audio file back)
