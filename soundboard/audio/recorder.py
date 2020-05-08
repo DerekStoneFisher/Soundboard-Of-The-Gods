@@ -36,7 +36,7 @@ class RecordingManager:
             self.recorder.startRecording()
         else:
             self.recorder.stopRecording()
-            saved_frames = self.recorder.saved_frames
+            saved_frames = self.recorder.getSavedFramesFromRecording()
 
             recording_name = "recording " + str(uuid.uuid4()) + '.wav'
             self.recording_names.append(recording_name)
@@ -46,7 +46,6 @@ class RecordingManager:
 
             if auto_save:
                 self.saveCurrentRecordingToFile()
-
 
     def deleteCurrentRecording(self):
         recording_name = self.recording_names[self.current_index]
@@ -59,6 +58,9 @@ class RecordingManager:
         if os.path.exists(recording_path):
             os.rename(recording_path, os.path.join(DELETED_FILES_FOLDER, recording_name))
         self._updateSoundCollection()
+
+    def refreshRecording(self):
+        self.sound_entry_to_write_to.frames = self.recorder.getSavedFramesFromRecording()
 
     def renameCurrentRecording(self):
         old_recording_name = self.recording_names[self.current_index]
@@ -76,7 +78,6 @@ class RecordingManager:
             old_path = os.path.join(self.recordings_folder, old_recording_name)
             if os.path.exists(old_path):
                 os.rename(old_path, os.path.join(DELETED_FILES_FOLDER, old_recording_name))
-
 
     def saveCurrentRecordingToFile(self, overwrite=False):
         recording_name = self.recording_names[self.current_index]
@@ -120,15 +121,16 @@ class AudioRecorder:
         '''
         An "always recording recorder". Call toggleRecording once to start recording, then call it again to end the recording.
         '''
-        self.frames = []
-        self.record_start = None # index of first recording frame.
-        self.record_end = None # index of final recording frame.
-        self.saved_frames = []
+        self._listen_frames_snapshot = [] # what _listen_frames looked like when the last recording ended
+        self._listen_frames = [] # temporary frames always being recorded to
+        self._start_index = None # index of first recording frame.
+        self._end_index = None # index of final recording frame.
+        self._is_recording = False
 
         thread.start_new_thread(self._listen, tuple())
 
     def isRecording(self):
-        return self.record_start is not None
+        return self._is_recording
 
     def _listen(self):
         '''
@@ -139,25 +141,56 @@ class AudioRecorder:
         stream = StreamBuilder().getInputStream(StreamBuilder.STEREO_MIX_INDEX)
         while True:
             read_result = stream.read(1024)
-            # every 60 seconds, reset the size of our frame array UNLESS we are currently recording something (record_start gets set to a number if we are)
-            if len(self.frames) > Audio_Utils.secondsToFrames(60) and self.record_start is None:
-                print "removing all but last 10 seconds of frames. Frame size went from " + str(len(self.frames)) \
-                      + " to " + str(len(self.frames[-Audio_Utils.secondsToFrames(10):]))
-                self.frames = self.frames[-Audio_Utils.secondsToFrames(10):]
-            self.frames.append(read_result)
+            # If we aren't in the middle of a recording, chop the last minute off of our listening frames every 2 minutes
+            if len(self._listen_frames) > Audio_Utils.secondsToFrames(120) and self._start_index is None:
+                print "removing first 60 seconds of frames. Frame size went from " + str(len(self._listen_frames)) \
+                      + " to " + str(len(self._listen_frames[-Audio_Utils.secondsToFrames(10):]))
+                self._listen_frames = self._listen_frames[-Audio_Utils.secondsToFrames(60):]
+            self._listen_frames.append(read_result)
 
     def startRecording(self):
         print "recording started"
-        self.record_start = len(self.frames)-1 # save index of current frame
+        self._is_recording = True
+        self._start_index = len(self._listen_frames)-1 # save index of current frame
+        self._end_index = None
 
     def stopRecording(self):
-        time.sleep(.25)
-        self.record_end = len(self.frames)-1 # save index of where we stopped recording
-        frames_to_save = list(self.frames[self.record_start:self.record_end])
-        normalized_frames_to_save = Audio_Utils.getNormalizedAudioFrames(frames_to_save, Audio_Utils.DEFAULT_DBFS)
-        normalized_frames_to_save = Audio_Utils.getFramesWithoutStartingSilence(normalized_frames_to_save)
-        print "recorded",  '%.2f' % Audio_Utils.framesToSeconds(len(frames_to_save)), "seconds of audio"
+        self._is_recording = False
+        time.sleep(.25) # this just feels right - recordings won't cut off as much with this
+        self._end_index = len(self._listen_frames)-1 # save index of where we stopped recording
+        self._listen_frames_snapshot = list(self._listen_frames) # save a copy of how the frames looked when we stopped recording
+        print "recorded",  '%.2f' % Audio_Utils.framesToSeconds(self._end_index - self._start_index), "seconds of audio"
 
-        self.record_start = None
-        self.record_end = None
-        self.saved_frames = normalized_frames_to_save
+    def getSavedFramesFromRecording(self):
+        '''
+        Takes the frames between the start and end of the recording and saves them to saved_frames.
+        Normalizes the volume and trims the starting silence first.
+        :return: None
+        '''
+        if None in [self._start_index, self._end_index]:
+            print "cannot save recording until a recording has been started and stopped"
+            return
+        frames_to_save = list(self._listen_frames_snapshot[self._start_index:self._end_index])
+        normalized_frames_to_save = Audio_Utils.getNormalizedAudioFrames(frames_to_save, Audio_Utils.DEFAULT_DBFS)
+        return Audio_Utils.getFramesWithoutStartingSilence(normalized_frames_to_save)
+
+    def moveRecordingStartBack(self, seconds_to_extend):
+        '''
+        if you started recording too late and missed something, use this to
+        move back the start time of the recording.
+        :param seconds_to_extend: float
+        :return: None
+        '''
+        if self._start_index is not None:
+            frames_to_extend = Audio_Utils.secondsToFrames(seconds_to_extend)
+            self._start_index = max((0, self._start_index - frames_to_extend))
+
+    def moveRecordingStartForward(self, seconds_to_extend):
+        '''
+        Does the opposite of moveRecordingStartBack.
+        :param seconds_to_extend: float
+        :return: None
+        '''
+        if self._start_index is not None:
+            frames_to_extend = Audio_Utils.secondsToFrames(seconds_to_extend)
+            self._start_index = min((len(self._listen_frames_snapshot)-1, self._start_index + frames_to_extend))

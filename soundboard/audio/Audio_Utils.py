@@ -1,4 +1,4 @@
-from pydub import AudioSegment
+from pydub import AudioSegment, effects
 import wave
 import os
 import shutil
@@ -51,7 +51,6 @@ def getReversedFrames(frames):
 
 def getReversedFrame(frame):
     atomic_audio_units = unpackFrameIntoAtomicAudioUnits(frame)
-    print len(atomic_audio_units)
     atomic_audio_units = atomic_audio_units[::-1]
     return buildFrameFromAtomicAudioUnits(atomic_audio_units)
 
@@ -81,9 +80,18 @@ def buildFrameFromAtomicAudioUnits(atomic_wav_bytes):
 def getNormalizedAudioFrames(frames, target_dBFS):
     sound = AudioSegment(b''.join(frames), sample_width=Const.SAMPLE_WIDTH, frame_rate=Const.FRAME_RATE, channels=Const.CHANNELS)
     normalized_sound = getSoundWithMatchedAmplitude(sound, target_dBFS)
-    normalized_sound_as_bytestring = normalized_sound.raw_data
-    normalized_bytestream_as_frame_list = [normalized_sound_as_bytestring[i:i+Const.FRAMES_PER_BUFFER] for i in range(0, len(normalized_sound_as_bytestring), Const.FRAMES_PER_BUFFER)] # slice bystestring into chunks of 1024 bytes
-    return normalized_bytestream_as_frame_list
+    return byteStringToFrameList(normalized_sound.raw_data)
+
+def byteStringToFrameList(bytes):
+    '''
+    :param bytes: str
+    :return: list(str)
+    '''
+    frames = []
+    for i in range(0, len(bytes), Const.FRAMES_PER_BUFFER):
+        frames.append(bytes[i:i+Const.FRAMES_PER_BUFFER])
+    return frames
+
 
 def getSoundWithMatchedAmplitude(sound, target_dBFS):
     change_in_dBFS = target_dBFS - sound.dBFS
@@ -157,10 +165,10 @@ def getPitchShiftedFrame(frame, octaves):
 
 
 def secondsToFrames(number_of_seconds):
-    return int(number_of_seconds / 0.0057)
+    return int(number_of_seconds * 690) # 690 is an estimation I calculated, correct within a few ms
 
 def framesToSeconds(number_of_frames):
-    return number_of_frames * 0.0057
+    return number_of_frames / 690.0 # 690 is an estimation I calculated, correct within a few ms
 
 def getVolumeOfFrame(frame):
     return max(array.array('h', frame))
