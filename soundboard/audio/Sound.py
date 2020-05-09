@@ -122,6 +122,10 @@ class SoundEntry:
         self.oscillation_generator = None
         self.oscillation_pitch = 0 # how much above or below 0 our pitch has changed due to oscillation
 
+        self.wobble_frames_remaining = 0
+        self.wobble_generator = None
+        self.wobble_pitch = 0
+
         self.current_sharedStream = None
         self.shared_steam_index = None
 
@@ -180,6 +184,7 @@ class SoundEntry:
 
             # OSCILLATION DONE HERE
             if self.oscillation_frames_remaining > 0:
+                print self.oscillation_frames_remaining, self.oscillation_pitch, self.pitch_modifier
                 pitch_change = next(self.oscillation_generator)
                 self.pitch_modifier += pitch_change
                 self.oscillation_pitch += pitch_change
@@ -193,6 +198,17 @@ class SoundEntry:
                     else:
                         self.pitch_modifier -= self.oscillation_pitch
                         self.oscillation_pitch = 0
+
+            # WOBBLE DONE HERE
+            if self.wobble_frames_remaining > 0:
+                pitch_change = next(self.wobble_generator)
+                self.pitch_modifier += pitch_change
+                self.wobble_pitch += pitch_change
+                self.wobble_frames_remaining -= 1
+
+                if self.wobble_frames_remaining == 0:
+                    self.pitch_modifier -= self.wobble_pitch
+                    self.wobble_pitch = 0
 
             # SLO-MO/SPEED-UP DONE HERE
             if self.gradual_pitch_shift_frames_remaining> 0:
@@ -296,6 +312,11 @@ class SoundEntry:
         self.oscillation_frames_remaining = Audio_Utils.secondsToFrames(1)
         if self.oscillation_generator is None:
             self.oscillation_generator = PitchController.genOscillate()
+
+    def activateWobble(self):
+        self.wobble_frames_remaining = Audio_Utils.secondsToFrames(1)
+        if self.wobble_generator is None:
+            self.wobble_generator = PitchController.genWobble()
 
     def activateGradualPitchShift(self, direction):
         self.gradual_pitch_shift_direction = direction

@@ -30,10 +30,10 @@ def getFramesFromFile(filename):
         if os.path.exists(filename):
             wf = wave.open(filename, 'rb')
             frames = []
-            frame = wf.readframes(Const.FRAMES_PER_BUFFER)
+            frame = wf.readframes(64)
             while frame != '':
                 frames.append(frame)
-                frame = wf.readframes(Const.FRAMES_PER_BUFFER)
+                frame = wf.readframes(64)
             wf.close()
             return frames
         else:
@@ -88,8 +88,8 @@ def byteStringToFrameList(bytes):
     :return: list(str)
     '''
     frames = []
-    for i in range(0, len(bytes), Const.FRAMES_PER_BUFFER):
-        frames.append(bytes[i:i+Const.FRAMES_PER_BUFFER])
+    for i in range(0, len(bytes), Const.FRAMES_PER_BUFFER/4):
+        frames.append(bytes[i:i+Const.FRAMES_PER_BUFFER/4])
     return frames
 
 
@@ -107,50 +107,6 @@ def copyfileToBackupFolder(filename, folder=None):
     number_of_bytes_in_one_second_of_audio = float(198656) # kind of arbitrary, I calculated it from one of my files
     seconds_in_file_formatted_nicely = str(round(os.path.getsize(filename)/number_of_bytes_in_one_second_of_audio, 1)).replace(".", ",")
     shutil.copyfile(filename, folder + "/" + filename.replace(".wav", "") + " " + seconds_in_file_formatted_nicely + " seconds - " + formatted_date + ".wav")
-
-
-def trimEnd(infile, outfilename, trim_ms):
-    infile = wave.open(infile, "r")
-    width = infile.getsampwidth()
-    rate = infile.getframerate()
-    frameCount = infile.getnframes()
-    fpms = rate / 1000 # frames per ms
-    length = frameCount - (trim_ms*fpms)
-
-    out = wave.open("_"+outfilename, "w")
-    out.setparams((infile.getnchannels(), width, rate, length, infile.getcomptype(), infile.getcompname()))
-
-    out.writeframes(infile.readframes(length))
-    out.close()
-    infile.close()
-
-    shutil.move("_"+outfilename, outfilename)
-
-
-def trimStart(infile, outfilename, trim_ms):
-    infile = wave.open(infile, "r")
-    width = infile.getsampwidth()
-    rate = infile.getframerate()
-    frameCount = infile.getnframes()
-    fpms = rate / 1000 # frames per ms
-    length = frameCount - (trim_ms*fpms)
-    start_index = trim_ms * fpms
-
-    infile.rewind()
-    anchor = infile.tell()
-    infile.setpos(anchor + start_index)
-
-
-    out = wave.open("_"+outfilename, "w")
-    out.setparams((infile.getnchannels(), width, rate, length, infile.getcomptype(), infile.getcompname()))
-
-    out.writeframes(infile.readframes(length))
-    out.close()
-    infile.close()
-
-    shutil.move("_"+outfilename, outfilename)
-
-
 
 def getPitchShiftedFrame(frame, octaves):
     sample_width = pyaudio.PyAudio().get_sample_size(pyaudio.paInt16)

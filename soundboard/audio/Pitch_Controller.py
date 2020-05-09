@@ -7,8 +7,8 @@ class PitchController(object):
     oscillation_rate = .01
     oscillation_amplitude = 1
 
-    wobble_pause_frequency = 5
-    wobble_amplitude = 1
+    wobble_pause_frequency = 60
+    wobble_amplitude = .2
 
     gradual_pitch_shift_rate = .0025
 
@@ -21,6 +21,16 @@ class PitchController(object):
     def adjustOscillationAmplitude(cls, direction, amount=.1):
         cls.oscillation_amplitude = max(amount, cls.oscillation_amplitude + amount*direction)
         print "oscillation_amplitude:", cls.oscillation_amplitude
+
+    @classmethod
+    def adjustWobbleAmplitude(cls, direction, amount=.05):
+        cls.wobble_amplitude = max(amount, cls.wobble_amplitude + amount*direction)
+        print "wobble_amplitude:", cls.wobble_amplitude
+
+    @classmethod
+    def adjustWobblePauseFrequency(cls, direction, amount=1):
+        cls.wobble_pause_frequency = max(amount, cls.wobble_pause_frequency + amount*direction)
+        print "wobble_pause_frequency:", cls.wobble_pause_frequency
 
     @classmethod
     def genWobble(cls):

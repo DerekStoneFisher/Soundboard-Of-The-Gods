@@ -108,7 +108,7 @@ class SoundBoardController:
             self.clearAllNonPlayingSoundsFromTheFrontOfPreviousSoundsQueue()
         elif self.keyPressManager.endingKeysEqual(["return"]): # enter -> stop all currently playing sounds
             self.soundCollection.stopAllSounds()
-        elif self.keyPressManager.endingKeysEqual(["left", "right"]): # left + right -> reset pitch of all sounds
+        elif self.keyPressManager.endingKeysEqual(["tab", "left", "right"]): # left + right -> reset pitch of all sounds
             self.soundCollection.resetAllPitches()
         elif keyPressManager.endingKeysEqual(["menu", "x"]):
             self.recorder.toggleRecord()
@@ -142,6 +142,8 @@ class SoundBoardController:
             self.getCurrentSoundEntry().activateGradualPitchShift(-1)
         elif self.keyPressManager.endingKeysEqual(["tab", "up"]):
             self.getCurrentSoundEntry().activateGradualPitchShift(1)
+
+        # OSCILLATE
         elif self.keyPressManager.endingKeysEqual(["tab","\\"]) or self.keyPressManager.endingKeysEqual(["tab", "2"]):
             self.getCurrentSoundEntry().activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "["]):
@@ -156,12 +158,24 @@ class SoundBoardController:
         elif self.keyPressManager.endingKeysEqual(["tab", "p"]):
             PitchController.adjustOscillationAmplitude(1)
             self.getCurrentSoundEntry().oscillation_frames_remaining = 690
-        # elif self.keyPressManager.endingKeysEqual(["tab", ";"]):
-        #     self.getCurrentSoundEntry().oscillation_pause_frequency -= 1
-        #     print "pause_frequency:", self.getCurrentSoundEntry().oscillation_pause_frequency
-        # elif self.keyPressManager.endingKeysEqual(["tab", "'"]):
-        #     self.getCurrentSoundEntry().oscillation_pause_frequency += 1
-        #     print "pause_frequency:", self.getCurrentSoundEntry().oscillation_pause_frequency
+
+        # WOBBLE
+        elif self.keyPressManager.endingKeysEqual(["tab", "5"]):
+            self.getCurrentSoundEntry().activateWobble()
+            self.getCurrentSoundEntry().wobble_frames_remaining = 690
+        elif self.keyPressManager.endingKeysEqual(["tab", ";"]):
+            PitchController.adjustWobblePauseFrequency(-1)
+            self.getCurrentSoundEntry().wobble_frames_remaining = 690
+        elif self.keyPressManager.endingKeysEqual(["tab", "'"]):
+            PitchController.adjustWobblePauseFrequency(1)
+            self.getCurrentSoundEntry().wobble_frames_remaining = 690
+        elif self.keyPressManager.endingKeysEqual(["tab", "k"]):
+            PitchController.adjustWobbleAmplitude(-1)
+            self.getCurrentSoundEntry().wobble_frames_remaining = 690
+        elif self.keyPressManager.endingKeysEqual(["tab", "l"]):
+            PitchController.adjustWobbleAmplitude(1)
+            self.getCurrentSoundEntry().wobble_frames_remaining = 690
+
         elif self.keyPressManager.endingKeysEqual(["up"]):
             self.getCurrentSoundEntry().moveMarkedFrameIndex(SHIFT_SECONDS)
         elif self.keyPressManager.endingKeysEqual(["down"]):
