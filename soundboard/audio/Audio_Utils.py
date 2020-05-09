@@ -128,7 +128,6 @@ def framesToSeconds(number_of_frames):
 
 def getVolumeOfFrame(frame):
     return max(array.array('h', frame))
-    # return sum(array.array('h', frame)) / len(array.array('h', frame))
 
 def getFramesWithoutStartingSilence(frames):
     for i in range(0, len(frames)):
@@ -136,7 +135,7 @@ def getFramesWithoutStartingSilence(frames):
         if volume > SILENCE_THRESHOLD:
             return frames[i:]
 
-    return frames
+    return []
 
 
 

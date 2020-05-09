@@ -123,10 +123,11 @@ class SoundBoardController:
         elif keyPressManager.endingKeysEqual(["tab", "oem_comma"]):
             self.recorder.recorder.moveRecordingStartBack(.5)
             self.recorder.refreshRecording()
+            self.soundCollection.playSoundToFinish(soundCollection.getSoundEntryByName('x.wav'))
         elif keyPressManager.endingKeysEqual(["tab", "oem_period"]):
             self.recorder.recorder.moveRecordingStartForward(.5)
             self.recorder.refreshRecording()
-
+            self.soundCollection.playSoundToFinish(soundCollection.getSoundEntryByName('x.wav'))
         elif self.keyPressManager.endingKeysEqual(["menu", "left"]): # alt + left -> shift down pitch of currently playing sound
             self.soundCollection.shiftAllPitches(-PITCH_SHIFT_AMOUNT)
         elif self.keyPressManager.endingKeysEqual(["menu", "right"]): # alt + right (insert trump joke here xd) -> shift down pitch of currently playing sound

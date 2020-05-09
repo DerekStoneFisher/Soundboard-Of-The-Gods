@@ -140,13 +140,13 @@ class AudioRecorder:
         '''
         stream = StreamBuilder().getInputStream(StreamBuilder.STEREO_MIX_INDEX)
         while True:
-            read_result = stream.read(1024)
+            read_results = Audio_Utils.byteStringToFrameList(stream.read(1024))
             # If we aren't in the middle of a recording, chop the last minute off of our listening frames every 2 minutes
             if len(self._listen_frames) > Audio_Utils.secondsToFrames(120) and self._start_index is None:
                 print "removing first 60 seconds of frames. Frame size went from " + str(len(self._listen_frames)) \
                       + " to " + str(len(self._listen_frames[-Audio_Utils.secondsToFrames(10):]))
                 self._listen_frames = self._listen_frames[-Audio_Utils.secondsToFrames(60):]
-            self._listen_frames.append(read_result)
+            self._listen_frames += read_results
 
     def startRecording(self):
         print "recording started"
@@ -171,6 +171,7 @@ class AudioRecorder:
             print "cannot save recording until a recording has been started and stopped"
             return
         frames_to_save = list(self._listen_frames_snapshot[self._start_index:self._end_index])
+        frames_to_save = Audio_Utils.getFramesWithoutStartingSilence(frames_to_save)
         normalized_frames_to_save = Audio_Utils.getNormalizedAudioFrames(frames_to_save, Audio_Utils.DEFAULT_DBFS)
         return Audio_Utils.getFramesWithoutStartingSilence(normalized_frames_to_save)
 
