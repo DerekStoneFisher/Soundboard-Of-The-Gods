@@ -16,9 +16,9 @@ class SharedStream:
         self.in_use = False
         self.output_streams = self._initializeAndReturnOutputStreams()
 
-    def playFrame(self, frame):
+    def playChunk(self, chunk):
         for stream in self.output_streams:
-            stream.write(frame)
+            stream.write(chunk)
 
     def _initializeAndReturnOutputStreams(self):
         output_streams = []

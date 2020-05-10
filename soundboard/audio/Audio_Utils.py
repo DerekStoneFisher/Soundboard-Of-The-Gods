@@ -9,9 +9,22 @@ import array
 
 DEFAULT_DBFS = -20.0
 SILENCE_THRESHOLD = 500
+FRAMES_PER_CHUNK = 64
+
+FRAME_SIZE_IN_BYTES = 4
+CHUNK_SIZE_IN_FRAMES = 64
 
 
-def writeFramesToFile(frames, filename, backup_old_sound, normalize=True):
+'''
+https://developer.apple.com/documentation/coreaudiotypes/audiostreambasicdescription?language=objc
+ - A sample is single numerical value for a single audio channel in an audio stream.
+ - A frame is a collection of time-coincident samples. For instance, a linear PCM stereo sound file
+   has two samples per frame, one for the left channel and one for the right channel.
+ - A chunk is a collection of one or more contiguous frames.
+
+'''
+
+def writeChunksToFile(chunks, filename, backup_old_sound, normalize=True):
     if backup_old_sound and os.path.exists(filename):
         copyfileToBackupFolder(filename)
     wf = wave.open(filename, 'wb')
@@ -20,77 +33,79 @@ def writeFramesToFile(frames, filename, backup_old_sound, normalize=True):
         wf.setsampwidth(Const.SAMPLE_WIDTH)
         wf.setframerate(Const.FRAME_RATE)
         if normalize:
-            frames = getNormalizedAudioFrames(frames, DEFAULT_DBFS)
-        wf.writeframes(b''.join(frames))
+            chunks = getNormalizedAudioChunks(chunks, DEFAULT_DBFS)
+        wf.writeframes(b''.join(chunks))
     finally:
         wf.close()
 
-def getFramesFromFile(filename):
+def getChunksFromFile(filename):
     try:
         if os.path.exists(filename):
             wf = wave.open(filename, 'rb')
-            frames = []
-            frame = wf.readframes(64)
-            while frame != '':
-                frames.append(frame)
-                frame = wf.readframes(64)
+            chunks = []
+            frames = wf.readframes(4096)
+            while frames != '':
+                chunks += packFramesIntoChunks(frames)
+                frames = wf.readframes(4096)
             wf.close()
-            return frames
+            return chunks
         else:
             raise ValueError("error: read from from file because file does not exist\tfilename=" + str(filename))
     except:
-        print "failed to getFramesFromfile for filename"+filename
+        print "failed to getChunksFromfile for filename"+filename
 
-
-def getReversedFrames(frames):
-    reversed_frames = []
-    for frame in frames:
-        reversed_frame = getReversedFrame(frame)
-        reversed_frames.append(reversed_frame)
-    return reversed_frames[::-1]
-
-def getReversedFrame(frame):
-    atomic_audio_units = unpackFrameIntoAtomicAudioUnits(frame)
-    atomic_audio_units = atomic_audio_units[::-1]
-    return buildFrameFromAtomicAudioUnits(atomic_audio_units)
-
-
-def unpackFrameIntoAtomicAudioUnits(frame):
-    atomic_audio_units = []
-    # assuming stereo and 16bit int wav sound, atomic audio unit contains 4 str chars
-    # first 2 chars represent audio for channel 1, second 2 chars represent audio for channel 2
-
-    # unpack the str into atomic audio units (4 bytes or 4 chars) by zipping every 4 chars into a tuple
-    frame_iter = iter(frame)
-    frame_zipped_into_atomic_audio_units = zip(frame_iter, frame_iter, frame_iter, frame_iter)
-
-    for zipped in frame_zipped_into_atomic_audio_units:
-        unzipped_atomic_audio_unit = zipped[0] + zipped[1] + zipped[2] + zipped[3]
-        atomic_audio_units.append(unzipped_atomic_audio_unit)
-
-    return atomic_audio_units
-
-def buildFrameFromAtomicAudioUnits(atomic_wav_bytes):
-    new_frame = ''
-    for atomic_audio_chunk in atomic_wav_bytes:
-        new_frame += atomic_audio_chunk
-
-    return new_frame
-
-def getNormalizedAudioFrames(frames, target_dBFS):
-    sound = AudioSegment(b''.join(frames), sample_width=Const.SAMPLE_WIDTH, frame_rate=Const.FRAME_RATE, channels=Const.CHANNELS)
-    normalized_sound = getSoundWithMatchedAmplitude(sound, target_dBFS)
-    return byteStringToFrameList(normalized_sound.raw_data)
-
-def byteStringToFrameList(bytes):
+def packFramesIntoChunks(frames):
     '''
-    :param bytes: str
+    takes a big bytestring of frames, and breaks it into chunks
+    :param frames: str
     :return: list(str)
     '''
+    chunks = []
+    rem = len(frames) % CHUNK_SIZE_IN_FRAMES
+    for i in range(0, len(frames)-rem, CHUNK_SIZE_IN_FRAMES):
+        chunks.append(frames[i:i+CHUNK_SIZE_IN_FRAMES])
+    return chunks
+
+
+
+def getReversedChunks(chunks):
+    reversed_chunks = []
+    for chunk in chunks:
+        reversed_chunk = getReversedChunk(chunk)
+        reversed_chunks.append(reversed_chunk)
+    return reversed_chunks[::-1]
+
+def getReversedChunk(chunk):
+    '''
+    Take each chunk, separate it into frames, reverse the order of the frames, then convert it back into a chunk
+    e.g. [1,2,3,4,5,6,7,8] -> [ [1,2,3], [4,5,6], [7,8,9] ] -> [ [3,2,1], [6,5,4], [9,8,7]] -> [3,2,1,6,5,4,9,8,7]
+    :param chunk: string
+    :return: string
+    '''
+    frames = unpackChunkIntoFrames(chunk)
+    frames = frames[::-1]
+    return ''.join(frames)
+
+
+def unpackChunkIntoFrames(chunk):
+    '''
+    Assuming stereo and 16bit int wav sound, each frame contains 4 str chars
+    First 2 chars represent the sample for channel 1, second 2 chars represent the sample for channel 2
+    We get the frames by grouping every 4 str chars of the audio chunk into a frame, then returning the list
+    :param chunk: str
+    '''
+    if len(chunk) % 4 != 0:
+        raise Exception("ERROR: expected audio chunk to be made up of groups of 4 str chars (maybe its mono instead of stereo?)")
+
     frames = []
-    for i in range(0, len(bytes), Const.FRAMES_PER_BUFFER/4):
-        frames.append(bytes[i:i+Const.FRAMES_PER_BUFFER/4])
+    for i in range(0, len(chunk), 4):
+        frames.append(chunk[i:i + 4])
     return frames
+
+def getNormalizedAudioChunks(chunks, target_dBFS):
+    sound = AudioSegment(b''.join(chunks), sample_width=Const.SAMPLE_WIDTH, frame_rate=Const.FRAME_RATE, channels=Const.CHANNELS)
+    normalized_sound = getSoundWithMatchedAmplitude(sound, target_dBFS)
+    return packFramesIntoChunks(normalized_sound.raw_data)
 
 
 def getSoundWithMatchedAmplitude(sound, target_dBFS):
@@ -98,7 +113,7 @@ def getSoundWithMatchedAmplitude(sound, target_dBFS):
     return sound.apply_gain(change_in_dBFS)
 
 def copyfileToBackupFolder(filename, folder=None):
-    if folder == None:
+    if folder is None:
         if "manual_record" in filename:
             folder = "Manual_Records"
         else:
@@ -108,9 +123,9 @@ def copyfileToBackupFolder(filename, folder=None):
     seconds_in_file_formatted_nicely = str(round(os.path.getsize(filename)/number_of_bytes_in_one_second_of_audio, 1)).replace(".", ",")
     shutil.copyfile(filename, folder + "/" + filename.replace(".wav", "") + " " + seconds_in_file_formatted_nicely + " seconds - " + formatted_date + ".wav")
 
-def getPitchShiftedFrame(frame, octaves):
+def getPitchShiftedChunk(chunk, octaves):
     sample_width = pyaudio.PyAudio().get_sample_size(pyaudio.paInt16)
-    sound = AudioSegment(frame, sample_width=sample_width, frame_rate=44100, channels=2)
+    sound = AudioSegment(chunk, sample_width=sample_width, frame_rate=44100, channels=2)
 
     new_sample_rate = int(sound.frame_rate * (2.0 ** octaves))
     lowpitch_sound = sound._spawn(sound.raw_data, overrides={'frame_rate': new_sample_rate})
@@ -120,21 +135,20 @@ def getPitchShiftedFrame(frame, octaves):
 
 
 
-def secondsToFrames(number_of_seconds):
+def secondsToChunks(number_of_seconds):
     return int(number_of_seconds * 690) # 690 is an estimation I calculated, correct within a few ms
 
-def framesToSeconds(number_of_frames):
-    return number_of_frames / 690.0 # 690 is an estimation I calculated, correct within a few ms
+def chunksToSeconds(number_of_chunks):
+    return number_of_chunks / 690.0 # 690 is an estimation I calculated, correct within a few ms
 
-def getVolumeOfFrame(frame):
-    return max(array.array('h', frame))
+def getVolumeOfChunk(chunk):
+    return max(array.array('h', chunk))
 
-def getFramesWithoutStartingSilence(frames):
-    for i in range(0, len(frames)):
-        volume = getVolumeOfFrame(frames[i])
-        if volume > SILENCE_THRESHOLD:
-            return frames[i:]
-
+def getChunksWithoutStartingSilence(chunks, silence_threshold=SILENCE_THRESHOLD):
+    for i in range(0, len(chunks)):
+        volume = getVolumeOfChunk(chunks[i])
+        if volume > silence_threshold:
+            return chunks[i:]
     return []
 
 

@@ -57,10 +57,10 @@ class SoundBoardGUI:
     def addSound(self):
         sound_path = self.file_name_entry_box.get()
         activation_keys = self.saved_keys_down
-        frames = self.recorder.getCurrentRecording()
-        # write the frames to a file, update the sound collection so we can play it, update the Json so it stays after restarting
-        print("addSound soundPath={}, activation_keys={}, frames={}".format(sound_path, activation_keys, len(frames)))
-        Audio_Utils.writeFramesToFile(frames, sound_path, False)
+        chunks = self.recorder.getCurrentRecording()
+        # write the chunks to a file, update the sound collection so we can play it, update the Json so it stays after restarting
+        print("addSound soundPath={}, activation_keys={}, chunks={}".format(sound_path, activation_keys, len(chunks)))
+        Audio_Utils.writeChunksToFile(chunks, sound_path, False)
         self.soundCollection.createAndAddSoundEntry(sound_path, activation_keys)
         self.soundLibrary.add(sound_path, activation_keys)
 
@@ -121,7 +121,7 @@ class SoundBoardGUI:
                 self.soundCollection.addSoundEntry(sound_entry)
 
                 background = "white"
-                if Audio_Utils.framesToSeconds(len(sound_entry.frames)) > 3:
+                if Audio_Utils.chunksToSeconds(len(sound_entry.chunks)) > 3:
                     background = "red"
 
 

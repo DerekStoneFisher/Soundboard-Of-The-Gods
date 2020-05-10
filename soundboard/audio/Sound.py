@@ -90,39 +90,39 @@ class SoundCollection:
 
 
 class SoundEntry:
-    def __init__(self, path_to_sound, frames=None, activation_keys=frozenset()):
+    def __init__(self, path_to_sound, chunks=None, activation_keys=frozenset()):
         """
         :type path_to_sound: str
-        :type frames: list
+        :type chunks: list
         :type pitch_modifier: float
         """
         self.path_to_sound = path_to_sound
         # print "initializing sound:", os.path.basename(path_to_sound), "with key bind:", ", ".join(activation_keys)
         self.activation_keys = activation_keys
-        self.frames = frames
-        self.reverse_frames = frames
+        self.chunks = chunks
+        self.reverse_chunks = chunks
         self.is_playing = False
         self.pitch_modifier = 0
         self.p = pyaudio.PyAudio()
         self.stream_in_use = False
 
-        self.frame_index = 0
-        self.reset_frame_index_on_play = True
+        self.chunk_index = 0
+        self.reset_chunk_index_on_play = True
 
-        self.jump_to_marked_frame_index = False
-        self.marked_frame_index = 0
+        self.jump_to_marked_chunk_index = False
+        self.marked_chunk_index = 0
 
-        self.jump_to_secondary_frame_index = False
-        self.secondary_marked_frame_index = 0
+        self.jump_to_secondary_chunk_index = False
+        self.secondary_marked_chunk_index = 0
 
         self.gradual_pitch_shift_direction = 1
-        self.gradual_pitch_shift_frames_remaining = 0
+        self.gradual_pitch_shift_chunks_remaining = 0
 
-        self.oscillation_frames_remaining = 0
+        self.oscillation_chunks_remaining = 0
         self.oscillation_generator = None
         self.oscillation_pitch = 0 # how much above or below 0 our pitch has changed due to oscillation
 
-        self.wobble_frames_remaining = 0
+        self.wobble_chunks_remaining = 0
         self.wobble_generator = None
         self.wobble_pitch = 0
 
@@ -131,175 +131,151 @@ class SoundEntry:
 
         self.reverse_mode = False
 
-        # when set to true, skip to the position saved right before a "jump to marked frame index" jump was done
+        # when set to true, skip to the position saved right before a "jump to marked chunk index" jump was done
         self.have_jumped = False
-        self.undo_marked_frame_jump = False
+        self.undo_marked_chunk_jump = False
         self.index_before_jump = 0
 
-        self.bpm = None
-        self.bpm_obj = BPM_Utils.BPM()
+        # self.bpm = None
+        # self.bpm_obj = BPM_Utils.BPM()
 
-        self.time_stretch_enabled = False
-        self.time_stretch_rate = 1
-        self.AUDIO_UNITS_PER_FRAME = (1024 / 2) / 2 # 1024 bytes per frame, 2 bytes for 1 16bit int, 2 channels = 1024/2/2 "audio units" per frame
-        self.time_stretched_audio_unit_buffer = []
+        # self.time_stretch_enabled = False
+        # self.time_stretch_rate = 1
+        # self.AUDIO_UNITS_PER_CHUNK = (1024 / 2) / 2 # 1024 bytes per chunk, 2 bytes for 1 16bit int, 2 channels = 1024/2/2 "audio units" per chunk
+        # self.time_stretched_audio_unit_buffer = []
 
 
-        if self.frames is None and os.path.exists(self.path_to_sound):
-            self.reloadFramesFromFile()
+        if self.chunks is None and os.path.exists(self.path_to_sound):
+            self.reloadChunksFromFile()
         else:
-            self.frames = None
+            self.chunks = None
             self.speaker_stream = None
             self.virtual_speaker_stream = None
 
     def play(self):
-        if self.frames is None:
-            raise ValueError("Error: cannot play sound self.frames == None. The sound file was most likely deleted. sound = " + self.path_to_sound)
+        if self.chunks is None:
+            raise ValueError("Error: cannot play sound self.chunks == None. The sound file was most likely deleted. sound = " + self.path_to_sound)
 
         if self.current_sharedStream is None:
             self.current_sharedStream, self.shared_steam_index = SharedStreamManager.getUnusedStreamAndIndex()
-        if self.frames is None and os.path.exists(self.path_to_sound):
-            self.reloadFramesFromFile()
+        if self.chunks is None and os.path.exists(self.path_to_sound):
+            self.reloadChunksFromFile()
 
         self.is_playing = True
 
-        if self.reset_frame_index_on_play:
-            self.frame_index = 0
+        if self.reset_chunk_index_on_play:
+            self.chunk_index = 0
         else:
-            self.frame_index = self.marked_frame_index
-            self.reset_frame_index_on_play = True # auto switch back after one play
+            self.chunk_index = self.marked_chunk_index
+            self.reset_chunk_index_on_play = True # auto switch back after one play
 
-        while self.frame_index < len(self.frames) and self.is_playing:
-            if self.jump_to_marked_frame_index:
-                self.frame_index = self.marked_frame_index
-                self.jump_to_marked_frame_index = False
-            elif self.jump_to_secondary_frame_index:
-                self.frame_index = self.secondary_marked_frame_index
-                self.jump_to_secondary_frame_index = False
-            elif self.undo_marked_frame_jump:
-                self.frame_index = self.index_before_jump + (self.frame_index - self.marked_frame_index)
-                self.undo_marked_frame_jump = False
+        while self.chunk_index < len(self.chunks) and self.is_playing:
+            if self.jump_to_marked_chunk_index:
+                self.chunk_index = self.marked_chunk_index
+                self.jump_to_marked_chunk_index = False
+            elif self.jump_to_secondary_chunk_index:
+                self.chunk_index = self.secondary_marked_chunk_index
+                self.jump_to_secondary_chunk_index = False
+            elif self.undo_marked_chunk_jump:
+                self.chunk_index = self.index_before_jump + (self.chunk_index - self.marked_chunk_index)
+                self.undo_marked_chunk_jump = False
 
-            current_frame = self.frames[min(self.frame_index, len(self.frames)-1)]
+            current_chunk = self.chunks[min(self.chunk_index, len(self.chunks)-1)]
 
             # OSCILLATION DONE HERE
-            if self.oscillation_frames_remaining > 0:
-                print self.oscillation_frames_remaining, self.oscillation_pitch, self.pitch_modifier
+            if self.oscillation_chunks_remaining > 0:
+                print self.oscillation_chunks_remaining, self.oscillation_pitch, self.pitch_modifier
                 pitch_change = next(self.oscillation_generator)
                 self.pitch_modifier += pitch_change
                 self.oscillation_pitch += pitch_change
-                self.oscillation_frames_remaining -= 1
+                self.oscillation_chunks_remaining -= 1
 
                 # if oscillation finished before it could return back to the pitch from where it started,
                 # then mark it as not finished and let it try again next time
-                if self.oscillation_frames_remaining == 0 and abs(self.oscillation_pitch) > 0.0001:
+                if self.oscillation_chunks_remaining == 0 and abs(self.oscillation_pitch) > 0.0001:
                     if abs(self.oscillation_pitch) > abs(PitchController.oscillation_rate):
-                        self.oscillation_frames_remaining = 1
+                        self.oscillation_chunks_remaining = 1
                     else:
                         self.pitch_modifier -= self.oscillation_pitch
                         self.oscillation_pitch = 0
 
             # WOBBLE DONE HERE
-            if self.wobble_frames_remaining > 0:
+            if self.wobble_chunks_remaining > 0:
                 pitch_change = next(self.wobble_generator)
                 self.pitch_modifier += pitch_change
                 self.wobble_pitch += pitch_change
-                self.wobble_frames_remaining -= 1
+                self.wobble_chunks_remaining -= 1
 
-                if self.wobble_frames_remaining == 0:
+                if self.wobble_chunks_remaining == 0:
                     self.pitch_modifier -= self.wobble_pitch
                     self.wobble_pitch = 0
 
             # SLO-MO/SPEED-UP DONE HERE
-            if self.gradual_pitch_shift_frames_remaining> 0:
+            if self.gradual_pitch_shift_chunks_remaining> 0:
                 self.pitch_modifier += PitchController.gradual_pitch_shift_rate * self.gradual_pitch_shift_direction
-                self.gradual_pitch_shift_frames_remaining -= 1
+                self.gradual_pitch_shift_chunks_remaining -= 1
 
             # round the pitch modifier to 0 if its close enough, I want zero comparison to work
             if -0.0001 < float(self.pitch_modifier) < 0.0001:
                 self.pitch_modifier = 0
 
             if self.pitch_modifier != 0:
-                current_frame = Audio_Utils.getPitchShiftedFrame(current_frame, self.pitch_modifier)
+                current_chunk = Audio_Utils.getPitchShiftedChunk(current_chunk, self.pitch_modifier)
 
-            self._writeFrameToStreams(current_frame)
+            self._writeChunkToStreams(current_chunk)
 
             if self.reverse_mode:
-                self.frame_index = max(0, self.frame_index-1) # prevent out of bounds
-                if self.frame_index == 0:
+                self.chunk_index = max(0, self.chunk_index-1) # prevent out of bounds
+                if self.chunk_index == 0:
                     self.reverse_mode = False
                     self.stop()
-                    self.reset_frame_index_on_play = False
+                    self.reset_chunk_index_on_play = False
             else:
-                self.frame_index += 1
+                self.chunk_index += 1
 
         self.is_playing = False
         SharedStreamManager.releaseStreamAtIndex(self.shared_steam_index)
         self.current_sharedStream = None
 
-    def _writeFrameToStreams(self, frame):
+    def _writeChunkToStreams(self, chunk):
         self.stream_in_use = True
-        if self.time_stretch_enabled:
-            self._handleTimeStretchWriteFrameToStreams(frame)
-        elif self.reverse_mode:
-            self.current_sharedStream.playFrame(Audio_Utils.getReversedFrame(frame))
+        # if self.time_stretch_enabled:
+        #     self._handleTimeStretchWriteChunkToStreams(chunk)
+        if self.reverse_mode:
+            self.current_sharedStream.playChunk(Audio_Utils.getReversedChunk(chunk))
         else:
-            self.current_sharedStream.playFrame(frame)
+            self.current_sharedStream.playChunk(chunk)
         self.stream_in_use = False
-
-    def _handleTimeStretchWriteFrameToStreams(self, frame):
-        atomic_audio_units = Audio_Utils.unpackFrameIntoAtomicAudioUnits(frame)
-        atomic_audio_units = [x for i, x in enumerate(atomic_audio_units) if i % (1-self.pitch_modifier)*10 != 0]
-
-
-        print "atomic audio units size is " + str(len(atomic_audio_units)) + " and modulo is " + str((1-self.pitch_modifier)*10)
-        self.time_stretched_audio_unit_buffer.extend(atomic_audio_units)
-        # if buffer exactly full after adding stretched frame contents, play it and empty it
-        if len(self.time_stretched_audio_unit_buffer) == self.AUDIO_UNITS_PER_FRAME:
-            self.current_sharedStream.playFrame(Audio_Utils.buildFrameFromAtomicAudioUnits(self.time_stretched_audio_unit_buffer))
-            print str.format("exactly filled buffer {}", len(self.time_stretched_audio_unit_buffer))
-
-            self.time_stretched_audio_unit_buffer = []
-        # if buffer not yet full after adding stretched frame contents, do nothing
-        elif len(self.time_stretched_audio_unit_buffer) < self.AUDIO_UNITS_PER_FRAME:
-            print str.format("buffer not yet full. only size {}", len(self.time_stretched_audio_unit_buffer))
-        # if buffer overly-full after adding stretched frame contents, play the first non-overfilled part and save the overfilled part as the new buffer
-        elif len(self.time_stretched_audio_unit_buffer) > self.AUDIO_UNITS_PER_FRAME:
-            first_audio_units = self.time_stretched_audio_unit_buffer[0:self.AUDIO_UNITS_PER_FRAME]
-            remaining_audio_units = self.time_stretched_audio_unit_buffer[self.AUDIO_UNITS_PER_FRAME:]
-            self.current_sharedStream.playFrame(Audio_Utils.buildFrameFromAtomicAudioUnits(first_audio_units))
-            print str.format("filled buffer {} and remaining part {}", len(first_audio_units), len(remaining_audio_units))
-            self.time_stretched_audio_unit_buffer = remaining_audio_units
 
     def stop(self):
         self.is_playing = False
 
-    def moveMarkedFrameIndex(self, move_amount):
-        self.marked_frame_index = max(0, self.marked_frame_index+Audio_Utils.secondsToFrames(move_amount)) # shift back in frames by .2 seconds. used max() with 0 to not get out of bounds error
+    def moveMarkedChunkIndex(self, move_amount):
+        self.marked_chunk_index = max(0, self.marked_chunk_index+Audio_Utils.secondsToChunks(move_amount)) # shift back in chunks by .2 seconds. used max() with 0 to not get out of bounds error
 
-    def markCurrentFrameIndex(self):
-        self.marked_frame_index = max(0, self.frame_index-5)
+    def markCurrentChunkIndex(self):
+        self.marked_chunk_index = max(0, self.chunk_index-5)
 
-    def markSecondaryFrameIndex(self):
-        self.secondary_marked_frame_index = max(0, self.frame_index-5)
+    def markSecondaryChunkIndex(self):
+        self.secondary_marked_chunk_index = max(0, self.chunk_index-5)
 
-    def jumpToMarkedFrameIndex(self):
+    def jumpToMarkedChunkIndex(self):
         if not self.have_jumped: # if we jump multiple times in a row, don't overwrite our saved position before the jump
-            self.index_before_jump = self.frame_index
+            self.index_before_jump = self.chunk_index
             self.have_jumped = True
 
-        self.jump_to_marked_frame_index = True
+        self.jump_to_marked_chunk_index = True
         if not self.is_playing:
             self.play()
 
-    def jumpToSecondaryMarkedFrameIndex(self):
-        self.jump_to_secondary_frame_index = True
+    def jumpToSecondaryMarkedChunkIndex(self):
+        self.jump_to_secondary_chunk_index = True
         if not self.is_playing:
             self.play()
 
     def resumePlayingBeforeLastJump(self):
         if self.have_jumped:
-            self.undo_marked_frame_jump = True
+            self.undo_marked_chunk_jump = True
             self.have_jumped = False
             if not self.is_playing:
                 self.play()
@@ -309,50 +285,50 @@ class SoundEntry:
         self.pitch_modifier += amount
 
     def activateOscillate(self):
-        self.oscillation_frames_remaining = Audio_Utils.secondsToFrames(1)
+        self.oscillation_chunks_remaining = Audio_Utils.secondsToChunks(1)
         if self.oscillation_generator is None:
             self.oscillation_generator = PitchController.genOscillate()
 
     def activateWobble(self):
-        self.wobble_frames_remaining = Audio_Utils.secondsToFrames(1)
+        self.wobble_chunks_remaining = Audio_Utils.secondsToChunks(1)
         if self.wobble_generator is None:
             self.wobble_generator = PitchController.genWobble()
 
     def activateGradualPitchShift(self, direction):
         self.gradual_pitch_shift_direction = direction
-        self.gradual_pitch_shift_frames_remaining = Audio_Utils.secondsToFrames(.6)
+        self.gradual_pitch_shift_chunks_remaining = Audio_Utils.secondsToChunks(.6)
 
 
     def getSoundName(self):
         return os.path.basename(self.path_to_sound).replace(".wav", "")
 
-    def reloadFramesFromFile(self):
-        self.frames = Audio_Utils.getFramesFromFile(self.path_to_sound)
-        self.frames = Audio_Utils.getFramesWithoutStartingSilence(self.frames)
-        self.frames = Audio_Utils.getNormalizedAudioFrames(self.frames, Audio_Utils.DEFAULT_DBFS)
-        # self.frames = Audio_Utils.getReversedFrames(self.frames)
+    def reloadChunksFromFile(self):
+        self.chunks = Audio_Utils.getChunksFromFile(self.path_to_sound)
+        self.chunks = Audio_Utils.getChunksWithoutStartingSilence(self.chunks)
+        self.chunks = Audio_Utils.getNormalizedAudioChunks(self.chunks, Audio_Utils.DEFAULT_DBFS)
+        # self.chunks = Audio_Utils.getReversedChunks(self.chunks)
 
 
 
 
     def getLengthOfSoundInSeconds(self):
-        return Audio_Utils.framesToSeconds(len(self.frames))
+        return Audio_Utils.chunksToSeconds(len(self.chunks))
 
 
-    def autoDetectBpm(self):
-        self.bpm = BPM_Utils.getBpmFromWavFile(self.path_to_sound)
-        print self.getSoundName() + " has bpm " + str(self.bpm)
-
-    def matchBpmWithAnotherSound(self, anotherSound):
-        """
-        :type anotherSound: SoundEntry
-        """
-        if self.bpm is None:
-            self.autoDetectBpm()
-        if anotherSound.bpm is None:
-            anotherSound.autoDetectBpm()
-        self.pitch_modifier = 1 - (self.bpm / anotherSound.bpm)
-        print "setting pitch modifier of " + self.getSoundName() + " to " + str(self.pitch_modifier) + " to match bpm of " + anotherSound.getSoundName() + ". bpm changed from " + str(self.bpm) + " -> " + str(self.bpm)
+    # def autoDetectBpm(self):
+    #     self.bpm = BPM_Utils.getBpmFromWavFile(self.path_to_sound)
+    #     print self.getSoundName() + " has bpm " + str(self.bpm)
+    #
+    # def matchBpmWithAnotherSound(self, anotherSound):
+    #     """
+    #     :type anotherSound: SoundEntry
+    #     """
+    #     if self.bpm is None:
+    #         self.autoDetectBpm()
+    #     if anotherSound.bpm is None:
+    #         anotherSound.autoDetectBpm()
+    #     self.pitch_modifier = 1 - (self.bpm / anotherSound.bpm)
+    #     print "setting pitch modifier of " + self.getSoundName() + " to " + str(self.pitch_modifier) + " to match bpm of " + anotherSound.getSoundName() + ". bpm changed from " + str(self.bpm) + " -> " + str(self.bpm)
 
 
     def __eq__(self, other):
