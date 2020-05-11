@@ -13,6 +13,7 @@ FRAMES_PER_CHUNK = 64
 
 FRAME_SIZE_IN_BYTES = 4
 CHUNK_SIZE_IN_FRAMES = 64
+BYTES_PER_CHUNK = 256
 
 
 '''
@@ -45,7 +46,7 @@ def getChunksFromFile(filename):
             chunks = []
             frames = wf.readframes(4096)
             while frames != '':
-                chunks += packFramesIntoChunks(frames)
+                chunks += packByteStringIntoChunks(frames)
                 frames = wf.readframes(4096)
             wf.close()
             return chunks
@@ -54,16 +55,16 @@ def getChunksFromFile(filename):
     except:
         print "failed to getChunksFromfile for filename"+filename
 
-def packFramesIntoChunks(frames):
+def packByteStringIntoChunks(frames):
     '''
     takes a big bytestring of frames, and breaks it into chunks
     :param frames: str
     :return: list(str)
     '''
     chunks = []
-    rem = len(frames) % CHUNK_SIZE_IN_FRAMES
-    for i in range(0, len(frames)-rem, CHUNK_SIZE_IN_FRAMES):
-        chunks.append(frames[i:i+CHUNK_SIZE_IN_FRAMES])
+    rem = len(frames) % BYTES_PER_CHUNK
+    for i in range(0, len(frames)-rem, BYTES_PER_CHUNK):
+        chunks.append(frames[i:i+BYTES_PER_CHUNK])
     return chunks
 
 
@@ -82,18 +83,20 @@ def getReversedChunk(chunk):
     :param chunk: string
     :return: string
     '''
-    frames = unpackChunkIntoFrames(chunk)
+    frames = _unpackChunkIntoFrames(chunk)
     frames = frames[::-1]
     return ''.join(frames)
 
 
-def unpackChunkIntoFrames(chunk):
+def _unpackChunkIntoFrames(chunk):
     '''
     Assuming stereo and 16bit int wav sound, each frame contains 4 str chars
     First 2 chars represent the sample for channel 1, second 2 chars represent the sample for channel 2
     We get the frames by grouping every 4 str chars of the audio chunk into a frame, then returning the list
     :param chunk: str
     '''
+    if FRAME_SIZE_IN_BYTES != 4:
+        raise Exception("ERROR: FRAME_SIZE_IN_BYTES is not 4")
     if len(chunk) % 4 != 0:
         raise Exception("ERROR: expected audio chunk to be made up of groups of 4 str chars (maybe its mono instead of stereo?)")
 
@@ -104,11 +107,11 @@ def unpackChunkIntoFrames(chunk):
 
 def getNormalizedAudioChunks(chunks, target_dBFS):
     sound = AudioSegment(b''.join(chunks), sample_width=Const.SAMPLE_WIDTH, frame_rate=Const.FRAME_RATE, channels=Const.CHANNELS)
-    normalized_sound = getSoundWithMatchedAmplitude(sound, target_dBFS)
-    return packFramesIntoChunks(normalized_sound.raw_data)
+    normalized_sound = _getSoundWithMatchedAmplitude(sound, target_dBFS)
+    return packByteStringIntoChunks(normalized_sound.raw_data)
 
 
-def getSoundWithMatchedAmplitude(sound, target_dBFS):
+def _getSoundWithMatchedAmplitude(sound, target_dBFS):
     change_in_dBFS = target_dBFS - sound.dBFS
     return sound.apply_gain(change_in_dBFS)
 

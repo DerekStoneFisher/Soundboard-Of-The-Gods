@@ -90,7 +90,7 @@ class SoundBoardGUI:
             sound_entry = SoundEntry(path_to_sound_entry)
             self.soundCollection.addSoundEntry(sound_entry)
         sound_entry = self.soundCollection.sound_entry_path_map[path_to_sound_entry]
-        self.soundBoardController.addSoundToQueueAndPlayIt(sound_entry)
+        self.soundCollection.playSoundToFinish(sound_entry)
 
     def addSoundboardButtons(self, parent):
 

@@ -143,7 +143,7 @@ class AudioRecorder:
         '''
         stream = StreamBuilder().getInputStream(StreamBuilder.STEREO_MIX_INDEX)
         while True:
-            read_results = Audio_Utils.packFramesIntoChunks(stream.read(1024))
+            read_results = Audio_Utils.packByteStringIntoChunks(stream.read(1024))
             # If we aren't in the middle of a recording, chop the last minute off of our listening chunks every 2 minutes
             if len(self._listen_chunks) > Audio_Utils.secondsToChunks(120) and not self._is_recording:
                 self._listen_chunks = self._listen_chunks[-Audio_Utils.secondsToChunks(60):]

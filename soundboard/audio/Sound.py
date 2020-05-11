@@ -8,6 +8,47 @@ import time, thread
 from soundboard.audio.stream import SharedStreamManager
 from soundboard.audio.Pitch_Controller import PitchController
 
+SOUND_QUEUE_MAX_SIZE = 5
+
+class PreviousSounds:
+    def __init__(self):
+        self.previous_sounds_queue = []
+
+    def updateQueueWithNewSoundEntry(self, sound_entry_to_add):
+        if self.getCurrentSoundEntry() != sound_entry_to_add and sound_entry_to_add is not None:
+            if len(self.previous_sounds_queue) >= SOUND_QUEUE_MAX_SIZE:
+                del(self.previous_sounds_queue[0])
+            self.previous_sounds_queue.append(sound_entry_to_add)
+
+    def getCurrentSoundEntry(self):
+        """
+        :rtype: SoundEntry
+        """
+        return self.previous_sounds_queue[-1]
+
+    def getPreviousSoundEntry(self):
+        """
+        :rtype: SoundEntry
+        """
+        return self.previous_sounds_queue[-2]
+
+    def swapCurrentAndPreviousSoundEntry(self):
+        print "'", self.previous_sounds_queue[-1].getSoundName()  + "' -> '" + self.previous_sounds_queue[-2].getSoundName() + "'"
+        self.previous_sounds_queue[-1], self.previous_sounds_queue[-2] = self.previous_sounds_queue[-2], self.previous_sounds_queue[-1]
+
+    def clearAllNonPlayingSoundsFromTheFrontOfPreviousSoundsQueue(self):
+        last_playing_sound_index = 0
+        for i in range(0, len(self.previous_sounds_queue)):
+            if self.previous_sounds_queue[i].is_playing:
+                last_playing_sound_index = i
+        self.previous_sounds_queue = self.previous_sounds_queue[0:last_playing_sound_index+1]
+
+    def stopCurrentSwapToPreviousAndStartPlaying(self):
+        self.getCurrentSoundEntry().stop()
+        self.swapCurrentAndPreviousSoundEntry()
+        self.getCurrentSoundEntry().reset_chunk_index_on_play = False
+        thread.start_new_thread(self.getCurrentSoundEntry().play, tuple())
+
 
 
 class SoundCollection:
@@ -20,14 +61,23 @@ class SoundCollection:
 
         self.key_bind_map = OrderedDict()
         self.sound_entry_path_map = OrderedDict()
+        self.previous_sounds = PreviousSounds()
+
 
         for activation_keys, sound_path in sound_library.getKeyBindMap().items():
             sound_entry = SoundEntry(sound_path, activation_keys=activation_keys)
             self.addSoundEntry(sound_entry)
 
-    def addSoundEntry(self, soundEntry):
-        self.sound_entry_path_map[soundEntry.path_to_sound] = soundEntry
-        self.key_bind_map[soundEntry.activation_keys] = soundEntry
+        # give previous sounds queue 2 random sounds to start with
+        self.previous_sounds.previous_sounds_queue += [next(iter(self.key_bind_map.values())),
+          next(iter(self.key_bind_map.values()))]
+
+    def getCurrentSoundEntry(self):
+        return self.previous_sounds.getCurrentSoundEntry()
+
+    def addSoundEntry(self, sound_entry):
+        self.sound_entry_path_map[sound_entry.path_to_sound] = sound_entry
+        self.key_bind_map[sound_entry.activation_keys] = sound_entry
 
     def createAndAddSoundEntry(self, path_to_sound, activation_keys):
         if type(activation_keys) == type(list()):
@@ -45,10 +95,6 @@ class SoundCollection:
     def shiftAllPitches(self, shift_amount):
         for soundEntry in self.sound_entry_path_map.values():
             soundEntry.pitch_modifier += shift_amount
-
-    def addSoundEntries(self, soundEntries):
-        for soundEntry in soundEntries:
-            self.addSoundEntry(soundEntry)
 
     def getBestSoundEntryMatchOrNull(self, keys_down):
         keys_down = list(keys_down) # make a mutable copy that won't change the original
@@ -75,6 +121,7 @@ class SoundCollection:
 
     def playSoundToFinish(self, sound_to_play):
         print "playing '" + sound_to_play.getSoundName() + "'"
+        self.previous_sounds.updateQueueWithNewSoundEntry(sound_to_play)
         if not sound_to_play.is_playing: # if it not playing, start playing it
             thread.start_new_thread(sound_to_play.play, tuple())
         else: # if already playing, stop playing and restart the sound from the beginning
