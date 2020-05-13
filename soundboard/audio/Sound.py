@@ -1,5 +1,5 @@
 from collections import OrderedDict
-import Audio_Utils
+import utils
 import pyaudio
 import BPM_Utils
 import os
@@ -62,22 +62,37 @@ class SoundCollection:
         self.key_bind_map = OrderedDict()
         self.sound_entry_path_map = OrderedDict()
         self.previous_sounds = PreviousSounds()
+        self.finished_loading_sounds = False
+
+        thread.start_new_thread(self.loadAllSoundsFromDisk, (sound_library,))
 
 
+
+    def loadAllSoundsFromDisk(self, sound_library):
+        start = time.time()
+        print "Started loading", len(sound_library.sound_paths), "sounds from disk."
         for activation_keys, sound_path in sound_library.getKeyBindMap().items():
+            print activation_keys, os.path.basename(sound_path)
             sound_entry = SoundEntry(sound_path, activation_keys=activation_keys)
             self.addSoundEntry(sound_entry)
+        for sound_path in sound_library.getPathsOfSoundsWithoutActivationKeys():
+            print os.path.basename(sound_path)
+            self.addSoundEntry(SoundEntry(sound_path))
+        print "Finished loading", len(sound_library.sound_paths), "sounds from disk in", time.time()-start, "seconds"
 
         # give previous sounds queue 2 random sounds to start with
         self.previous_sounds.previous_sounds_queue += [next(iter(self.key_bind_map.values())),
-          next(iter(self.key_bind_map.values()))]
+                                                       next(iter(self.key_bind_map.values()))]
+        self.finished_loading_sounds = True
+
 
     def getCurrentSoundEntry(self):
         return self.previous_sounds.getCurrentSoundEntry()
 
     def addSoundEntry(self, sound_entry):
         self.sound_entry_path_map[sound_entry.path_to_sound] = sound_entry
-        self.key_bind_map[sound_entry.activation_keys] = sound_entry
+        if sound_entry.activation_keys is not None:
+            self.key_bind_map[sound_entry.activation_keys] = sound_entry
 
     def createAndAddSoundEntry(self, path_to_sound, activation_keys):
         if type(activation_keys) == type(list()):
@@ -267,7 +282,7 @@ class SoundEntry:
                 self.pitch_modifier = 0
 
             if self.pitch_modifier != 0:
-                current_chunk = Audio_Utils.getPitchShiftedChunk(current_chunk, self.pitch_modifier)
+                current_chunk = utils.getPitchShiftedChunk(current_chunk, self.pitch_modifier)
 
             self._writeChunkToStreams(current_chunk)
 
@@ -289,7 +304,7 @@ class SoundEntry:
         # if self.time_stretch_enabled:
         #     self._handleTimeStretchWriteChunkToStreams(chunk)
         if self.reverse_mode:
-            self.current_sharedStream.playChunk(Audio_Utils.getReversedChunk(chunk))
+            self.current_sharedStream.playChunk(utils.getReversedChunk(chunk))
         else:
             self.current_sharedStream.playChunk(chunk)
         self.stream_in_use = False
@@ -298,7 +313,7 @@ class SoundEntry:
         self.is_playing = False
 
     def moveMarkedChunkIndex(self, move_amount):
-        self.marked_chunk_index = max(0, self.marked_chunk_index+Audio_Utils.secondsToChunks(move_amount)) # shift back in chunks by .2 seconds. used max() with 0 to not get out of bounds error
+        self.marked_chunk_index = max(0, self.marked_chunk_index + utils.secondsToChunks(move_amount)) # shift back in chunks by .2 seconds. used max() with 0 to not get out of bounds error
 
     def markCurrentChunkIndex(self):
         self.marked_chunk_index = max(0, self.chunk_index-5)
@@ -332,34 +347,34 @@ class SoundEntry:
         self.pitch_modifier += amount
 
     def activateOscillate(self):
-        self.oscillation_chunks_remaining = Audio_Utils.secondsToChunks(1)
+        self.oscillation_chunks_remaining = utils.secondsToChunks(1)
         if self.oscillation_generator is None:
             self.oscillation_generator = PitchController.genOscillate()
 
     def activateWobble(self):
-        self.wobble_chunks_remaining = Audio_Utils.secondsToChunks(1)
+        self.wobble_chunks_remaining = utils.secondsToChunks(1)
         if self.wobble_generator is None:
             self.wobble_generator = PitchController.genWobble()
 
     def activateGradualPitchShift(self, direction):
         self.gradual_pitch_shift_direction = direction
-        self.gradual_pitch_shift_chunks_remaining = Audio_Utils.secondsToChunks(.6)
+        self.gradual_pitch_shift_chunks_remaining = utils.secondsToChunks(1)
 
 
     def getSoundName(self):
         return os.path.basename(self.path_to_sound).replace(".wav", "")
 
     def reloadChunksFromFile(self):
-        self.chunks = Audio_Utils.getChunksFromFile(self.path_to_sound)
-        self.chunks = Audio_Utils.getChunksWithoutStartingSilence(self.chunks)
-        self.chunks = Audio_Utils.getNormalizedAudioChunks(self.chunks, Audio_Utils.DEFAULT_DBFS)
+        self.chunks = utils.getChunksFromFile(self.path_to_sound)
+        self.chunks = utils.getChunksWithoutStartingSilence(self.chunks)
+        self.chunks = utils.getNormalizedAudioChunks(self.chunks, utils.DEFAULT_DBFS)
         # self.chunks = Audio_Utils.getReversedChunks(self.chunks)
 
 
 
 
     def getLengthOfSoundInSeconds(self):
-        return Audio_Utils.chunksToSeconds(len(self.chunks))
+        return utils.chunksToSeconds(len(self.chunks))
 
 
     # def autoDetectBpm(self):

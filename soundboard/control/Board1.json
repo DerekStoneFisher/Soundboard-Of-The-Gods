@@ -1,5 +1,4 @@
 {"soundsWithKeys": [
-    {"name": "x.wav", "activationKeys": ["control", "multiply"]},
     {"name": "x1.wav", "activationKeys": ["1", "next"]},
     {"name": "x2.wav", "activationKeys": ["2", "next"]},
     {"name": "x3.wav", "activationKeys": ["3", "next"]},
@@ -180,7 +179,7 @@
 	{"name": "here comes the money.wav", "activationKeys": ["end", "numpad7"]},
 	{"name": "europe asia africa.wav", "activationKeys": ["end", "numpad8"]},
 	{"name": "crab rave.wav", "activationKeys": ["end", "numpad9"]},
-	{"name": "hit or miss mia khalifa.wav", "activationKeys": ["end", "numpad4"]},
+	{"name": "cowboy screaming.wav", "activationKeys": ["end", "numpad4"]},
 	{"name": "bitches love sosa.wav", "activationKeys": ["end", "numpad6"]},
 	{"name": "sad titanic recorder song.wav", "activationKeys": ["end", "numpad2"]},
 	{"name": "final countdown.wav", "activationKeys": ["end", "numpad1"]},
@@ -198,4 +197,8 @@
 	{"name": "doctor laugh.wav", "activationKeys": ["control", "numpad6"]},
 	{"name": "so theres this guy that does mongolian metal.wav", "activationKeys": ["shift", "numpad6"]},
 	{"name": "chaos must die.wav", "activationKeys": ["menu", "numpad4"]},
-	{"name": "grizzly bear noises.wav", "activationKeys": ["menu", "numpad6"]}]}
+	{"name": "grizzly bear noises.wav", "activationKeys": ["menu", "numpad6"]},
+	{"name": "i can break these cuffs.wav", "activationKeys": ["menu", "numpad5"]},
+	{"name": "lets go for a ride.wav", "activationKeys": ["menu", "numpad1"]},
+	{"name": "mission complete ear rape.wav", "activationKeys": ["menu", "numpad2"]}
+]}

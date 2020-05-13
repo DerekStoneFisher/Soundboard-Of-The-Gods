@@ -5,7 +5,7 @@ import time
 import thread
 import shutil
 
-import Audio_Utils
+import utils
 from Sound import SoundEntry
 from stream import StreamBuilder
 import os
@@ -14,13 +14,12 @@ import uuid
 DELETED_FILES_FOLDER = "D:/Projects/Audio-Shadow-Play-Git/deleted_files"
 
 class RecordingManager:
-    def __init__(self, recordings_folder, sound_entry_to_write_to):
+    def __init__(self, recordings_folder):
         '''
 
         :param recordings_folder: str
         :param sound_entry_to_write_to: SoundEntry
         '''
-        self.sound_entry_to_write_to = sound_entry_to_write_to
         self.recordings_folder = recordings_folder
         self.recorder = AudioRecorder()
         self.recording_names_to_chunks = OrderedDict()
@@ -28,9 +27,9 @@ class RecordingManager:
         self.recording_names = [f for f in os.listdir(recordings_folder) if f.endswith('.wav')]
         self.recording_names.sort(key=lambda x: os.path.getmtime(os.path.join(recordings_folder, x)))
         self.current_index = len(self.recording_names)-1
-        self.refreshRecording()
-
-        self._preemptivelyLoadChunksForNextFewRecordings()
+        self.sound_entry_to_write_to = SoundEntry(path_to_sound=os.path.join(self.recordings_folder, self.recording_names[self.current_index]))
+        
+        self.updateCurrentRecordingChunks()
 
     def toggleRecord(self, auto_save=True):
         if not self.recorder.isRecording():
@@ -47,6 +46,9 @@ class RecordingManager:
 
             if auto_save and len(saved_chunks) > 0:
                 self.saveCurrentRecordingToFile()
+                
+    def getRecordingAsSoundEntry(self):
+        return self.sound_entry_to_write_to
 
     def deleteCurrentRecording(self):
         recording_name = self.recording_names[self.current_index]
@@ -58,10 +60,7 @@ class RecordingManager:
         recording_path = os.path.join(self.recordings_folder, recording_name)
         if os.path.exists(recording_path):
             os.rename(recording_path, os.path.join(DELETED_FILES_FOLDER, recording_name))
-        self._updateSoundCollection()
-
-    def refreshRecording(self):
-        self.sound_entry_to_write_to.chunks = self.recorder.getSavedChunksFromRecording()
+        self.updateCurrentRecordingChunks()
 
     def renameCurrentRecording(self):
         old_recording_name = self.recording_names[self.current_index]
@@ -85,14 +84,14 @@ class RecordingManager:
         recording_chunks = self.recording_names_to_chunks[recording_name]
         recording_path = os.path.join(self.recordings_folder, recording_name)
         if not os.path.exists(recording_path) or overwrite:
-            thread.start_new_thread(Audio_Utils.writeChunksToFile, (recording_chunks, recording_path, False))
+            thread.start_new_thread(utils.writeChunksToFile, (recording_chunks, recording_path, False))
 
     def loadNextRecording(self):
-        if self.current_index >= len(self.recording_names):
+        if self.current_index >= len(self.recording_names)-1:
             self.current_index = 0
         else:
             self.current_index += 1
-        self._updateSoundCollection()
+        self.updateCurrentRecordingChunks()
         print self.current_index, "/", len(self.recording_names)
 
     def loadPreviousRecording(self):
@@ -100,18 +99,28 @@ class RecordingManager:
             self.current_index = len(self.recording_names)-1
         else:
             self.current_index -= 1
-        self._updateSoundCollection()
+        self.updateCurrentRecordingChunks()
         print self.current_index, "/", len(self.recording_names)
 
-    def _updateSoundCollection(self):
+    def updateCurrentRecordingChunks(self):
+        '''
+        if the current recording is the most recent one in the list of recordings, and the
+        Audio Recorder has a valid recording, then update the chunks of our sound_entry with
+        the chunks from the recording stored in the recorder. Otherwise, get the chunks
+        from the file/cache of the recording.
+        :return: None
+        '''
         self._preemptivelyLoadChunksForNextFewRecordings()
-        recording_name = self.recording_names[self.current_index]
-        self.sound_entry_to_write_to.chunks = self._getChunksFromRecordingName(recording_name)
+        if self.current_index == len(self.recording_names)-1 and self.recorder.getSavedChunksFromRecording() is not None:
+            self.sound_entry_to_write_to.chunks = self.recorder.getSavedChunksFromRecording()
+        else:
+            recording_name = self.recording_names[self.current_index]
+            self.sound_entry_to_write_to.chunks = self._getChunksFromRecordingName(recording_name)
 
     def _getChunksFromRecordingName(self, name):
         if name not in self.recording_names_to_chunks:
             path = os.path.join(self.recordings_folder, name)
-            self.recording_names_to_chunks[name] = Audio_Utils.getChunksFromFile(path)
+            self.recording_names_to_chunks[name] = utils.getChunksFromFile(path)
         return self.recording_names_to_chunks[name]
 
     def _preemptivelyLoadChunksForNextFewRecordings(self):
@@ -143,11 +152,12 @@ class AudioRecorder:
         '''
         stream = StreamBuilder().getInputStream(StreamBuilder.STEREO_MIX_INDEX)
         while True:
-            read_results = Audio_Utils.packByteStringIntoChunks(stream.read(1024))
+            read_results = utils.packByteStringIntoChunks(stream.read(1024))
             # If we aren't in the middle of a recording, chop the last minute off of our listening chunks every 2 minutes
-            if len(self._listen_chunks) > Audio_Utils.secondsToChunks(120) and not self._is_recording:
-                self._listen_chunks = self._listen_chunks[-Audio_Utils.secondsToChunks(60):]
+            if len(self._listen_chunks) > utils.secondsToChunks(120) and not self._is_recording:
+                self._listen_chunks = self._listen_chunks[-utils.secondsToChunks(60):]
             self._listen_chunks += read_results
+            # print "listen_chunks", len(self._listen_chunks), "\tstart", self._start_index, "\tend", self._end_index, "\tsnapshot", len(self._listen_chunks_snapshot), "\trecording", self.isRecording()
 
     def startRecording(self):
         print "recording started"
@@ -156,11 +166,11 @@ class AudioRecorder:
         self._end_index = None
 
     def stopRecording(self):
-        self._is_recording = False
         time.sleep(.25) # this just feels right - recordings won't cut off as much with this
         self._end_index = len(self._listen_chunks)-1 # save index of where we stopped recording
         self._listen_chunks_snapshot = list(self._listen_chunks) # save a copy of how the chunks looked when we stopped recording
-        print "recorded",  '%.2f' % Audio_Utils.chunksToSeconds(self._end_index - self._start_index), "seconds of audio"
+        self._is_recording = False # set False AFTER updating listen chunks to prevent race condition with _listen
+        print "recorded",  '%.2f' % utils.chunksToSeconds(self._end_index - self._start_index), "seconds of audio"
 
     def getSavedChunksFromRecording(self):
         '''
@@ -172,9 +182,9 @@ class AudioRecorder:
             print "cannot save recording until a recording has been started and stopped"
             return
         chunks_to_save = list(self._listen_chunks_snapshot[self._start_index:self._end_index])
-        chunks_to_save = Audio_Utils.getChunksWithoutStartingSilence(chunks_to_save, 100)
-        normalized_chunks_to_save = Audio_Utils.getNormalizedAudioChunks(chunks_to_save, Audio_Utils.DEFAULT_DBFS)
-        return Audio_Utils.getChunksWithoutStartingSilence(normalized_chunks_to_save)
+        chunks_to_save = utils.getChunksWithoutStartingSilence(chunks_to_save, 100)
+        normalized_chunks_to_save = utils.getNormalizedAudioChunks(chunks_to_save, utils.DEFAULT_DBFS)
+        return utils.getChunksWithoutStartingSilence(normalized_chunks_to_save)
 
     def moveRecordingStartBack(self, seconds_to_extend):
         '''
@@ -184,7 +194,7 @@ class AudioRecorder:
         :return: None
         '''
         if self._start_index is not None:
-            num_chunks_to_extend = Audio_Utils.secondsToChunks(seconds_to_extend)
+            num_chunks_to_extend = utils.secondsToChunks(seconds_to_extend)
             self._start_index = max((0, self._start_index - num_chunks_to_extend))
 
     def moveRecordingStartForward(self, seconds_to_extend):
@@ -194,5 +204,5 @@ class AudioRecorder:
         :return: None
         '''
         if self._start_index is not None:
-            num_chunks_to_extend = Audio_Utils.secondsToChunks(seconds_to_extend)
+            num_chunks_to_extend = utils.secondsToChunks(seconds_to_extend)
             self._start_index = min((len(self._listen_chunks_snapshot)-1, self._start_index + num_chunks_to_extend))

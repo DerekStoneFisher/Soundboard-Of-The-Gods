@@ -2,7 +2,7 @@ from soundboard.audio.Sound import SoundEntry
 import tkinter as tk
 import tkinter.font as tkFont
 from functools import partial
-from soundboard.audio import Audio_Utils
+from soundboard.audio import utils
 import os
 
 SOUNDS_DIRECTORY = "C:/Users/Admin/Desktop/Soundboard/Other Music + Godly"
@@ -60,7 +60,7 @@ class SoundBoardGUI:
         chunks = self.recorder.getCurrentRecording()
         # write the chunks to a file, update the sound collection so we can play it, update the Json so it stays after restarting
         print("addSound soundPath={}, activation_keys={}, chunks={}".format(sound_path, activation_keys, len(chunks)))
-        Audio_Utils.writeChunksToFile(chunks, sound_path, False)
+        utils.writeChunksToFile(chunks, sound_path, False)
         self.soundCollection.createAndAddSoundEntry(sound_path, activation_keys)
         self.soundLibrary.add(sound_path, activation_keys)
 
@@ -121,7 +121,7 @@ class SoundBoardGUI:
                 self.soundCollection.addSoundEntry(sound_entry)
 
                 background = "white"
-                if Audio_Utils.chunksToSeconds(len(sound_entry.chunks)) > 3:
+                if utils.chunksToSeconds(len(sound_entry.chunks)) > 3:
                     background = "red"
 
 

@@ -5,12 +5,12 @@ class PitchController(object):
     Spawns threads to modify the pitches of sounds that get passed to its functions
     '''
     oscillation_rate = .01
-    oscillation_amplitude = 1
+    oscillation_amplitude = .6
 
     wobble_pause_frequency = 60
     wobble_amplitude = .2
 
-    gradual_pitch_shift_rate = .0025
+    gradual_pitch_shift_rate = .0015
 
     @classmethod
     def adjustOscillationRate(cls, direction, amount=.0025):
