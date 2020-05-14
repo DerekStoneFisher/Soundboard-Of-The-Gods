@@ -86,6 +86,14 @@ class RecordingManager:
         if not os.path.exists(recording_path) or overwrite:
             thread.start_new_thread(utils.writeChunksToFile, (recording_chunks, recording_path, False))
 
+    def loadRecordingByName(self, name):
+        for i in reversed(range(len(self.recording_names))):
+            print i, name, self.recording_names[i]
+            if self.recording_names[i] == name:
+                self.current_index = i
+                self.updateCurrentRecordingChunks()
+                return
+
     def loadNextRecording(self):
         if self.current_index >= len(self.recording_names)-1:
             self.current_index = 0
@@ -120,7 +128,7 @@ class RecordingManager:
     def _getChunksFromRecordingName(self, name):
         if name not in self.recording_names_to_chunks:
             path = os.path.join(self.recordings_folder, name)
-            self.recording_names_to_chunks[name] = utils.getChunksFromFile(path)
+            self.recording_names_to_chunks[name] = utils.getNormalizedAudioChunks(utils.getChunksFromFile(path))
         return self.recording_names_to_chunks[name]
 
     def _preemptivelyLoadChunksForNextFewRecordings(self):

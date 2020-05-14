@@ -148,6 +148,23 @@ class SoundCollection:
                 counter += 1
             thread.start_new_thread(sound_to_play.play, tuple())
 
+    def toggleCurrentSoundPause(self):
+        sound = self.getCurrentSoundEntry()
+        if sound.is_playing:
+            sound.markCurrentChunkIndex()
+            sound.stop()
+        else:
+            sound.reset_chunk_index_on_play = False
+            self.playSoundToFinish(sound)
+
+    def reverseAndPlayCurrentSound(self):
+        sound = self.getCurrentSoundEntry()
+        if not sound.is_playing:
+            self.playSoundToFinish(sound)
+        else:
+            sound.reverse_mode = not sound.reverse_mode
+
+
 
 
 
@@ -210,7 +227,7 @@ class SoundEntry:
         if self.chunks is None and os.path.exists(self.path_to_sound):
             self.reloadChunksFromFile()
         else:
-            self.chunks = None
+            self.chunks = chunks
             self.speaker_stream = None
             self.virtual_speaker_stream = None
 

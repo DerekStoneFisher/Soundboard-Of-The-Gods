@@ -25,7 +25,7 @@ https://developer.apple.com/documentation/coreaudiotypes/audiostreambasicdescrip
 
 '''
 
-def writeChunksToFile(chunks, filename, backup_old_sound, normalize=True):
+def writeChunksToFile(chunks, filename, backup_old_sound, normalize=False):
     if backup_old_sound and os.path.exists(filename):
         copyfileToBackupFolder(filename)
     wf = wave.open(filename, 'wb')
@@ -105,7 +105,7 @@ def _unpackChunkIntoFrames(chunk):
         frames.append(chunk[i:i + 4])
     return frames
 
-def getNormalizedAudioChunks(chunks, target_dBFS):
+def getNormalizedAudioChunks(chunks, target_dBFS=DEFAULT_DBFS):
     sound = AudioSegment(b''.join(chunks), sample_width=Const.SAMPLE_WIDTH, frame_rate=Const.FRAME_RATE, channels=Const.CHANNELS)
     normalized_sound = _getSoundWithMatchedAmplitude(sound, target_dBFS)
     return packByteStringIntoChunks(normalized_sound.raw_data)

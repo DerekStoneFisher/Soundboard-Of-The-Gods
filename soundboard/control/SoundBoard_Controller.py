@@ -95,6 +95,26 @@ class SoundBoardController:
             return
 
 
+        elif self.keyPressManager.endingKeysEqual(["up"]):
+            sound.moveMarkedChunkIndex(cls.SHIFT_SECONDS)
+        elif self.keyPressManager.endingKeysEqual(["down"]):
+            sound.moveMarkedChunkIndex(-cls.SHIFT_SECONDS)
+        elif self.keyPressManager.endingKeysEqual(["1", "3"]):
+            sound.markCurrentChunkIndex()
+        elif self.keyPressManager.endingKeysEqual(["tab", "3"]):
+            sound.markSecondaryChunkIndex()
+        elif self.keyPressManager.endingKeysEqual(["1", "2"]):
+            self.sound_collection.previous_sounds.swapCurrentAndPreviousSoundEntry()
+        elif self.keyPressManager.endingKeysEqual(["`"]):
+            sound.stop()
+        elif self.keyPressManager.endingKeysEqual(["1", "6"]):
+            self.sound_collection.playSoundToFinish(sound)
+        elif self.keyPressManager.endingKeysEqual(["1", "5"]):
+            self.sound_collection.toggleCurrentSoundPause()
+        elif self.keyPressManager.endingKeysEqual(["2", "5"]):
+            self.sound_collection.reverseAndPlayCurrentSound()
+        elif self.keyPressManager.endingKeysEqual(["tab", "1"]):  # stop current sound, swap to last sound and start playing
+            self.sound_collection.previous_sounds.stopCurrentSwapToPreviousAndStartPlaying()
         elif self.keyPressManager.keysAreContainedInKeysDown(["1", "4"]):  # we use more lenient matching for this one
             thread.start_new_thread(sound.jumpToMarkedChunkIndex, tuple())  # need to call via a thread so we don't get blocked by the .play() which can get called by this function
         if self.keyPressManager.keysAreContainedInKeysDown(["tab", "4"]):  # we use more lenient matching for this one
@@ -109,7 +129,6 @@ class SoundBoardController:
 
        # key binds that affect all sounds in the sound collection
         elif self.keyPressManager.endingKeysEqual(["tab", "return"]): # tab + enter -> clear non-playing sounds from the "recent sounds queue"
-            print "self.clearAllNonPlayingSoundsFromTheFrontOfPreviousSoundsQueue()"
             self.sound_collection.previous_sounds.clearAllNonPlayingSoundsFromTheFrontOfPreviousSoundsQueue()
         elif self.keyPressManager.endingKeysEqual(["return"]): # enter -> stop all currently playing sounds
             self.sound_collection.stopAllSounds()
@@ -126,15 +145,11 @@ class SoundBoardController:
         elif self.keyPressManager.endingKeysEqual(["tab", "/"]):
             self.recorder.renameCurrentRecording()
         elif self.keyPressManager.endingKeysEqual(["control", "multiply"]):
-            self.sound_collection.playSoundToFinish(self.recorder.getRecordingAsSoundEntry())
+            self.playRecording()
         elif self.keyPressManager.endingKeysEqual(["tab", "oem_comma"]):
-            self.recorder.recorder.moveRecordingStartBack(.5)
-            self.recorder.updateCurrentRecordingChunks()
-            self.sound_collection.playSoundToFinish(self.recorder.getRecordingAsSoundEntry())
+            self.moveRecordingStartForward()
         elif self.keyPressManager.endingKeysEqual(["tab", "oem_period"]):
-            self.recorder.recorder.moveRecordingStartForward(.5)
-            self.recorder.updateCurrentRecordingChunks()
-            self.sound_collection.playSoundToFinish(self.recorder.getRecordingAsSoundEntry())
+            self.moveRecordingStartBackward()
         elif self.keyPressManager.endingKeysEqual(["menu", "left"]): # alt + left -> shift down pitch of currently playing sound
             self.sound_collection.shiftAllPitches(-cls.PITCH_SHIFT_AMOUNT)
         elif self.keyPressManager.endingKeysEqual(["menu", "right"]): # alt + right (insert trump joke here xd) -> shift down pitch of currently playing sound
@@ -156,62 +171,35 @@ class SoundBoardController:
             sound.activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "["]):
             PitchController.adjustOscillationRate(-1)
-            sound.oscillation_chunks_remaining = 690
+            sound.activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "]"]):
             PitchController.adjustOscillationRate(1)
-            sound.oscillation_chunks_remaining = 690
+            sound.activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "o"]):
             PitchController.adjustOscillationAmplitude(-1)
-            sound.oscillation_chunks_remaining = 690
+            sound.activateOscillate()
         elif self.keyPressManager.endingKeysEqual(["tab", "p"]):
             PitchController.adjustOscillationAmplitude(1)
-            sound.oscillation_chunks_remaining = 690
+            sound.activateOscillate()
 
         # WOBBLE
         elif self.keyPressManager.endingKeysEqual(["tab", "5"]):
             sound.activateWobble()
-            sound.wobble_chunks_remaining = 690
         elif self.keyPressManager.endingKeysEqual(["tab", ";"]):
             PitchController.adjustWobblePauseFrequency(-1)
-            sound.wobble_chunks_remaining = 690
+            sound.activateWobble()
         elif self.keyPressManager.endingKeysEqual(["tab", "'"]):
             PitchController.adjustWobblePauseFrequency(1)
-            sound.wobble_chunks_remaining = 690
+            sound.activateWobble()
         elif self.keyPressManager.endingKeysEqual(["tab", "k"]):
             PitchController.adjustWobbleAmplitude(-1)
-            sound.wobble_chunks_remaining = 690
+            sound.activateWobble()
         elif self.keyPressManager.endingKeysEqual(["tab", "l"]):
             PitchController.adjustWobbleAmplitude(1)
-            sound.wobble_chunks_remaining = 690
+            sound.activateWobble()
 
-        elif self.keyPressManager.endingKeysEqual(["up"]):
-            sound.moveMarkedChunkIndex(cls.SHIFT_SECONDS)
-        elif self.keyPressManager.endingKeysEqual(["down"]):
-            sound.moveMarkedChunkIndex(-cls.SHIFT_SECONDS)
-        elif self.keyPressManager.endingKeysEqual(["1","3"]):
-            sound.markCurrentChunkIndex()
-        elif self.keyPressManager.endingKeysEqual(["tab", "3"]):
-            sound.markSecondaryChunkIndex()
-        elif self.keyPressManager.endingKeysEqual(["1", "2"]):
-            self.sound_collection.previous_sounds.swapCurrentAndPreviousSoundEntry()
-        elif self.keyPressManager.endingKeysEqual(["`"]):
-             sound.stop() # no new thread needed
-        elif self.keyPressManager.endingKeysEqual(["1", "6"]) :
-            self.sound_collection.playSoundToFinish(sound)
-        elif self.keyPressManager.endingKeysEqual(["1", "5"]):
-            if sound.is_playing:
-                sound.markCurrentChunkIndex()
-                sound.stop()
-            else:
-                sound.reset_chunk_index_on_play = False
-                self.sound_collection.playSoundToFinish(sound)
-        elif self.keyPressManager.endingKeysEqual(["2", "5"]):
-            if not sound.is_playing:
-                self.sound_collection.playSoundToFinish(sound)
-            else:
-                sound.reverse_mode = not sound.reverse_mode
-        elif self.keyPressManager.endingKeysEqual(["tab", "1"]): # stop current sound, swap to last sound and start playing
-            self.sound_collection.previous_sounds.stopCurrentSwapToPreviousAndStartPlaying()
+
+
         # elif self.keyPressManager.endingKeysEqual(["tab", "6"]):
         #     sound.matchBpmWithAnotherSound(self.getPreviousSoundEntry())
         # elif self.keyPressManager.endingKeysEqual(["tab", "7"]):
@@ -225,6 +213,18 @@ class SoundBoardController:
         #     sound.bpm_obj.restart()
 
 
+    def playRecording(self):
+        self.sound_collection.playSoundToFinish(self.recorder.getRecordingAsSoundEntry())
+
+    def moveRecordingStartForward(self):
+        self.recorder.recorder.moveRecordingStartForward(.5)
+        self.recorder.updateCurrentRecordingChunks()
+        self.playRecording()
+
+    def moveRecordingStartBackward(self):
+        self.recorder.recorder.moveRecordingStartBack(.5)
+        self.recorder.updateCurrentRecordingChunks()
+        self.playRecording()
 
 
 if __name__ == "__main__":
